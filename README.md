@@ -11,7 +11,7 @@ https://www.kernel.org/doc/html/latest/filesystems/ext4/overview.html
 
 2. 搞定文件系统的性能测试怎么做（比如在已有的基于fuse的文件系统上如何做测试）
 
-3. 研究一下ext2对崩溃一致性/持久性的实现？
+3. 研究一下ext4对崩溃一致性/持久性的实现？
 
 4. 从一开始就维护好文档，以方便最后交报告
 
