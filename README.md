@@ -1,5 +1,8 @@
 # BLFS
 
+ext4 doc:
+https://www.kernel.org/doc/html/latest/filesystems/ext4/overview.html
+
 希望模仿ext2/ext4设计文件系统
 
 我们一共有四周时间，在第一周可以做什么：
