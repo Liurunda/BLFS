@@ -7,22 +7,30 @@
 
 #include <string>
 
-template<typename T>
-class Descriptor {
-public:
-    Descriptor(int offset, T content) : offset(offset), content(content) {}
-    void set_content(T new_content) {content = new_content;}
-    void get_offset() {return offset;}
-    void get_content() {return content;}
 
-private:
-    int offset;
-    T content;
-};
+#ifndef LINUX
 
-typedef Descriptor<char> Descriptorc;
-typedef Descriptor<uint8_t> Descriptor8;
-typedef Descriptor<uint16_t> Descriptor16;
-typedef Descriptor<uint32_t> Descriptor32;
+#define __bitwise __attribute__((bitwise))
+
+typedef         uint8_t         __u8;
+typedef         uint16_t        __u16;
+typedef         uint32_t        __u32;
+
+#if defined(__GNUC__) && !defined(__STRICT_ANSI__)
+typedef         uint64_t        __u64;
+#endif
+
+typedef __u16 __bitwise __le16;
+typedef __u16 __bitwise __be16;
+typedef __u32 __bitwise __le32;
+typedef __u32 __bitwise __be32;
+
+#if defined(__GNUC__) && !defined(__STRICT_ANSI__)
+typedef __u64 __bitwise __le64;
+typedef __u64 __bitwise __be64;
+#endif
+#else
+#include "linux/types.h"
+#endif
 
 #endif //BLFS_DISK_H
