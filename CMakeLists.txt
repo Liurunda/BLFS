@@ -4,7 +4,7 @@ project(BLFS)
 set(CMAKE_CXX_STANDARD 17)
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    add_definitions(-D LINIX)
+    add_definitions(-D LINUX)
 ENDIF()
 
 set(SRC_FILES

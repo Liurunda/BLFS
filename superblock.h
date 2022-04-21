@@ -16,9 +16,19 @@ public:
 
     void operator=(const Superblock &) = delete;
 
-    static Superblock *get_instance();
+    static Superblock *get_instance() {
+        if (super_block == nullptr) {
+            super_block = new Superblock();
+            return super_block;
+        } else return super_block;
+    }
 
-    static void destroy_instance();
+    static void destroy_instance() {
+        if (super_block != nullptr) {
+            delete super_block;
+            super_block = nullptr;
+        }
+    }
 
     __le32 s_inodes_count;                  // Total inode count.
     __le32 s_blocks_count_lo;               // Total block count.
