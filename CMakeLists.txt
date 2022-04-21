@@ -9,6 +9,6 @@ set(SRC_FILES
 
 set(HEADER_FILES
 
-)
+        disk.h superBlock.h inode.h inode.cpp)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
