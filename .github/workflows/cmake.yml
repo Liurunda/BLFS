@@ -17,7 +17,16 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Install libfuse
-      run: sudo apt-get install -y libfuse2 libfuse-dev
+      run: |
+        - wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
+          tar -xf fuse-3.6.2.tar.xz
+          cd fuse-3.6.2
+          mkdir build
+          cd build
+          sudo apt install meson
+          meson ..
+          ninja
+          sudo ninja install
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.

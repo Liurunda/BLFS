@@ -33,7 +33,6 @@ typedef __u64 __bitwise __be64;
 #endif
 #else
 #include "linux/types.h"
-#include <fuse.h>
 #endif
 
 const char DISK_PATH[] = "/tmp/disk";

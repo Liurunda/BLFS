@@ -10,7 +10,7 @@ add_compile_options(
         -D_FILE_OFFSET_BITS=64
 )
 
-aux_source_directory(src/ SRC_FILES)
+aux_source_directory(${PROJECT_SOURCE_DIR}/src SRC_FILES)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
