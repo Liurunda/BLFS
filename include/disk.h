@@ -36,4 +36,6 @@ typedef __u64 __bitwise __be64;
 #include <fuse.h>
 #endif
 
+const char DISK_PATH[] = "/tmp/disk";
+
 #endif //BLFS_DISK_H

@@ -10,16 +10,11 @@ add_compile_options(
         -D_FILE_OFFSET_BITS=64
 )
 
-set(SRC_FILES
-        blfs.cpp
-        inode.cpp
-        superblock.cpp
-)
+aux_source_directory(src/ SRC_FILES)
 
-set(HEADER_FILES
-        disk.h
-        superblock.h
-        inode.h
-)
+add_executable(${PROJECT_NAME} ${SRC_FILES})
 
-add_executable(${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
+target_include_directories(${PROJECT_NAME}
+        PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
