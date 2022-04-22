@@ -12,26 +12,64 @@
  * i_mode value is a combination of the following flags
  */
 
+#ifndef S_IXOTH
 #define S_IXOTH 0x1         // Others may execute
+#endif
+#ifndef S_IWOTH
 #define S_IWOTH 0x2         // Others may write
+#endif
+#ifndef S_IROTH
 #define S_IROTH 0x3         // Others may read
+#endif
+#ifndef S_IXGRP
 #define S_IXGRP 0x8         // Group members may execute
+#endif
+#ifndef S_IWGRP
 #define S_IWGRP 0x10        // Group members may write
+#endif
+#ifndef S_IRGRP
 #define S_IRGRP 0x20        // Group members may read
+#endif
+#ifndef S_IXUSR
 #define S_IXUSR 0x40        // Owner may execute
+#endif
+#ifndef S_IWUSR
 #define S_IWUSR 0x80        // Owner may write
+#endif
+#ifndef S_IRUSR
 #define S_IRUSR 0x100       // Owner may read
+#endif
+#ifndef S_ISVTX
 #define S_ISVTX 0x200       // Sticky bit
+#endif
+#ifndef S_ISGID
 #define S_ISGID 0x400       // Set GID
+#endif
+#ifndef S_ISUID
 #define S_ISUID 0x800       // Set UID
+#endif
 // These are mutually-exclusive file types
+#ifndef S_IFIFO
 #define S_IFIFO 0x1000      // FIFO
+#endif
+#ifndef S_IFCHR
 #define S_IFCHR 0x2000      // Character device
+#endif
+#ifndef S_IFDIR
 #define S_IFDIR 0x4000      // Directory
+#endif
+#ifndef S_IFBLK
 #define S_IFBLK 0x6000      // Block device
+#endif
+#ifndef S_IFREG
 #define S_IFREG 0x8000      // Regular file
+#endif
+#ifndef S_IFLNK
 #define S_IFLNK 0xA000      // Symbolic link
+#endif
+#ifndef S_IFSOCK
 #define S_IFSOCK 0xC000     // Socket
+#endif
 
 
 #define EXT4_N_BLOCKS 15

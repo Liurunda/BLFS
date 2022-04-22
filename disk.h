@@ -5,12 +5,14 @@
 #ifndef BLFS_DISK_H
 #define BLFS_DISK_H
 
-#include <string>
-
-
 #ifndef LINUX
 
-#define __bitwise __attribute__((bitwise))
+#ifdef __CHECKER__
+#define __bitwise__ __attribute__((bitwise))
+#else
+#define __bitwise__
+#endif
+#define __bitwise __bitwise__
 
 typedef         uint8_t         __u8;
 typedef         uint16_t        __u16;
@@ -31,6 +33,7 @@ typedef __u64 __bitwise __be64;
 #endif
 #else
 #include "linux/types.h"
+#include <fuse.h>
 #endif
 
 #endif //BLFS_DISK_H
