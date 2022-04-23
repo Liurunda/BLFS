@@ -60,6 +60,6 @@ static struct fuse_operations blfs_ops = {
         .fsync      = blfs_fsync
 };
 
-int main() {
-    return 0;
+int main(int argc, char *argv[]) {
+    return fuse_main(argc, argv, &blfs_ops, nullptr);
 }

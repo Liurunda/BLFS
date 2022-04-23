@@ -17,4 +17,11 @@ add_executable(${PROJECT_NAME} ${SRC_FILES})
 target_include_directories(${PROJECT_NAME}
         PRIVATE
         ${PROJECT_SOURCE_DIR}/include
-)
+        )
+
+find_library(LIBFUSE3 fuse3 /usr/local/lib/x86_64-linux-gnu)
+
+target_link_libraries(${PROJECT_NAME}
+        PUBLIC
+        ${LIBFUSE3}
+        )
