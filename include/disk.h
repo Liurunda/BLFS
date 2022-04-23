@@ -5,36 +5,48 @@
 #ifndef BLFS_DISK_H
 #define BLFS_DISK_H
 
-#ifndef LINUX
+#include <linux/types.h>
+#include "superblock.h"
 
-#ifdef __CHECKER__
-#define __bitwise__ __attribute__((bitwise))
-#else
-#define __bitwise__
-#endif
-#define __bitwise __bitwise__
 
-typedef         uint8_t         __u8;
-typedef         uint16_t        __u16;
-typedef         uint32_t        __u32;
-
-#if defined(__GNUC__) && !defined(__STRICT_ANSI__)
-typedef         uint64_t        __u64;
-#endif
-
-typedef __u16 __bitwise __le16;
-typedef __u16 __bitwise __be16;
-typedef __u32 __bitwise __le32;
-typedef __u32 __bitwise __be32;
-
-#if defined(__GNUC__) && !defined(__STRICT_ANSI__)
-typedef __u64 __bitwise __le64;
-typedef __u64 __bitwise __be64;
-#endif
-#else
-#include "linux/types.h"
-#endif
-
+typedef unsigned long long ull;
 const char DISK_PATH[] = "/tmp/disk";
+const ull DISK_SIZE = 17179869184; // 16G
+
+class Disk {
+public:
+    Disk(Disk &) = delete;
+
+    Disk(Disk &&) = delete;
+
+    void operator=(const Disk &) = delete;
+
+    static Disk *get_instance() {
+        if (disk_instance == nullptr) {
+            disk_instance = new Disk();
+        }
+        return disk_instance;
+    }
+
+    static void destroy_instance() {
+        if (disk_instance != nullptr) {
+            delete disk_instance;
+            disk_instance = nullptr;
+        }
+    }
+
+    void init_with_superblock(Superblock*);
+
+    static const ull BOOTBLOCK_OFFSET = 0;
+    static const ull BOOTBLOCK_SIZE = 1024;
+    static const ull SUPERBLOCK_OFFSET = 1024;
+    static const ull SUPERBLOCK_SIZE = 1024;
+private:
+    static Disk *disk_instance;
+
+    Disk() = default;
+
+    ~Disk() = default;
+};
 
 #endif //BLFS_DISK_H

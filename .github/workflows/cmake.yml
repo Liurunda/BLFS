@@ -18,9 +18,9 @@ jobs:
 
     - name: Install libfuse
       run: |
-          wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
-          tar -xf fuse-3.6.2.tar.xz
-          cd fuse-3.6.2
+          wget https://github.com/libfuse/libfuse/releases/download/fuse-3.9.3/fuse-3.9.3.tar.xz
+          tar -xf fuse-3.9.3.tar.xz
+          cd fuse-3.9.3
           mkdir build
           cd build
           sudo apt install meson
@@ -28,6 +28,9 @@ jobs:
           ninja
           sudo ninja install
 
+    - name: Download thrid-party libraries
+      run: git submodule update --init --recursive
+      
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type

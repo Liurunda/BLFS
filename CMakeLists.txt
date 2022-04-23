@@ -10,11 +10,25 @@ add_compile_options(
         -D_FILE_OFFSET_BITS=64
 )
 
+# -------------crc32c-------------
+add_subdirectory(third-party/crc32c)
+include_directories(
+        third-party/crc32c/include
+)
+
 aux_source_directory(${PROJECT_SOURCE_DIR}/src SRC_FILES)
 
-add_executable(${PROJECT_NAME} ${SRC_FILES})
+add_executable(${PROJECT_NAME} ${SRC_FILES} src/blfs_function.cpp src/superblock.cpp)
 
 target_include_directories(${PROJECT_NAME}
         PRIVATE
         ${PROJECT_SOURCE_DIR}/include
-)
+        )
+
+find_library(LIBFUSE3 fuse3 /usr/local/lib/x86_64-linux-gnu)
+
+target_link_libraries(${PROJECT_NAME}
+        PUBLIC
+        ${LIBFUSE3}
+        crc32c
+        )
