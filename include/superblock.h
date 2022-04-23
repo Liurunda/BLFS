@@ -5,8 +5,7 @@
 #ifndef BLFS_SUPERBLOCK_H
 #define BLFS_SUPERBLOCK_H
 
-
-#include "disk.h"
+#include <linux/types.h>
 
 class Superblock {
 public:
@@ -17,18 +16,20 @@ public:
     void operator=(const Superblock &) = delete;
 
     static Superblock *get_instance() {
-        if (super_block == nullptr) {
-            super_block = new Superblock();
-            return super_block;
-        } else return super_block;
+        if (superblock_instance == nullptr) {
+            superblock_instance = new Superblock();
+        }
+        return superblock_instance;
     }
 
     static void destroy_instance() {
-        if (super_block != nullptr) {
-            delete super_block;
-            super_block = nullptr;
+        if (superblock_instance != nullptr) {
+            delete superblock_instance;
+            superblock_instance = nullptr;
         }
     }
+
+    void traverse_setting_to_data(void *buf);
 
     __le32 s_inodes_count;                  // Total inode count.
     __le32 s_blocks_count_lo;               // Total block count.
@@ -146,12 +147,13 @@ public:
     __le32 s_reserved[94];                  // Padding to the end of the block.
     __le32 s_checksum;                      // Superblock checksum.
 
+    static const int SUPERBLOCK_SIZE = 0x400;
 private:
-    Superblock() = default;
+    Superblock();
 
     ~Superblock() = default;
 
-    static Superblock *super_block;
+    static Superblock *superblock_instance;
 };
 
 #endif //BLFS_SUPERBLOCK_H
