@@ -44,7 +44,7 @@ public:
     static const ull SUPERBLOCK_SIZE = 1024;
 
 
-    Block* block_group;
+    BlockGroup* block_group;
 private:
     static Disk *disk_instance;
 

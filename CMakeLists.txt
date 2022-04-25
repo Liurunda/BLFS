@@ -18,7 +18,7 @@ include_directories(
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src SRC_FILES)
 
-add_executable(${PROJECT_NAME} ${SRC_FILES} src/blfs_function.cpp src/superblock.cpp include/block_group.h include/group_descriptor.h)
+add_executable(${PROJECT_NAME} ${SRC_FILES})
 
 target_include_directories(${PROJECT_NAME}
         PRIVATE
