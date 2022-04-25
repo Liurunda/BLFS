@@ -20,7 +20,7 @@ int blfunc_init() {
                 return -1;
             }
         }
-        int fd = open(DISK_PATH, O_RDWR | O_CREAT | O_DIRECT | O_NOATIME);
+        int fd = open(DISK_PATH, O_RDWR | O_CREAT | O_DIRECT | O_NOATIME, 0777);
         if(fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0, DISK_SIZE) < 0) {
             perror("Preallocate failed");
             return -1;
