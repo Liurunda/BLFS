@@ -29,7 +29,9 @@ public:
         }
     }
 
-    void traverse_setting_to_data(void *buf);
+    void traverse_settings_to_data(void *buf);
+
+    void traverse_data_to_settings(void *buf);
 
     __le32 s_inodes_count;                  // Total inode count.
     __le32 s_blocks_count_lo;               // Total block count.

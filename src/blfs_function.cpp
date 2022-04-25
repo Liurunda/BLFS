@@ -32,7 +32,7 @@ int blfunc_init() {
             perror("Failed to alloc aligned buffer for superblock data");
             return -1;
         }
-        Superblock::get_instance()->traverse_setting_to_data(superblock_data);
+        Superblock::get_instance()->traverse_settings_to_data(superblock_data);
         lseek64(fd, 1024, SEEK_SET);
         if(write(fd, superblock_data, 1024) < 0) {
             perror("Failed to write superblock data into disk");
