@@ -39,5 +39,22 @@ int blfunc_init() {
             return -1;
         }
     }
+    else {
+        int fd = open(DISK_PATH, O_RDWR | O_DIRECT | O_NOATIME);
+        void* superblock_data = nullptr;
+        if(posix_memalign(&superblock_data, 512, 1024) < 0) {
+            perror("Failed to alloc aligned buffer for superblock data");
+            return -1;
+        }
+        lseek64(fd, 1024, SEEK_SET);
+        if(read(fd, superblock_data, 1024) < 0) {
+            perror("Failed to read superblock data into disk");
+            return -1;
+        }
+        if(!Superblock::get_instance()->validate_checksum()) {
+            perror("Superblock checksum validation failed");
+            return -1;
+        }
+    }
     return 0;
 }

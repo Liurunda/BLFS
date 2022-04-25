@@ -7,6 +7,7 @@
 
 #include <linux/types.h>
 #include "superblock.h"
+#include "block_group.h"
 
 
 typedef unsigned long long ull;
@@ -41,6 +42,9 @@ public:
     static const ull BOOTBLOCK_SIZE = 1024;
     static const ull SUPERBLOCK_OFFSET = 1024;
     static const ull SUPERBLOCK_SIZE = 1024;
+
+
+    Block* block_group;
 private:
     static Disk *disk_instance;
 

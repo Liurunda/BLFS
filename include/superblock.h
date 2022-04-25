@@ -33,6 +33,8 @@ public:
 
     void traverse_data_to_settings(void *buf);
 
+    bool validate_checksum();
+
     __le32 s_inodes_count;                  // Total inode count.
     __le32 s_blocks_count_lo;               // Total block count.
     __le32 s_r_blocks_count_lo;             // This number of blocks can only be allocated by the super-user.

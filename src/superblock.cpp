@@ -35,6 +35,7 @@ Superblock::Superblock() {
     traverse_settings_to_data(buf);
     buf[Superblock::SUPERBLOCK_SIZE - 4] = '\0';
     s_checksum = crc32c::Crc32c(buf, ~0);
+    delete[] buf;
 }
 
 void Superblock::traverse_settings_to_data(void *buf) {
@@ -294,4 +295,13 @@ void Superblock::traverse_data_to_settings(void *buf) {
     u8_to_le32(s_orphan_file_inum, 0x280);
     for(int i = 0; i < 94; i ++) u8_to_le32(s_reserved[i], 0x284 + 4 * i);
     u8_to_le32(s_checksum, 0x3FC);
+}
+
+bool Superblock::validate_checksum() {
+    char* buf = new char[Superblock::SUPERBLOCK_SIZE];
+    traverse_settings_to_data(buf);
+    buf[Superblock::SUPERBLOCK_SIZE - 4] = '\0';
+    __le32 checksum = crc32c::Crc32c(buf, ~0);
+    delete[] buf;
+    return checksum == s_checksum;
 }
