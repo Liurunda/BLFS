@@ -40,7 +40,6 @@ Superblock::Superblock() {
 
 void Superblock::traverse_settings_to_data(void *buf) {
     __u8* u8_buf = reinterpret_cast<__u8*>(buf);
-    memset(u8_buf, 0, sizeof(__u8) * 0x400);
     auto le64_to_u8 = [&](__le64 num, int offset) {
         u8_buf[offset] = (__u8)(num & 0xFF);
         u8_buf[offset + 1] = (__u8)((num & 0xFF00) >> 8);
@@ -168,7 +167,6 @@ void Superblock::traverse_settings_to_data(void *buf) {
 
 void Superblock::traverse_data_to_settings(void *buf) {
     __u8* u8_buf = reinterpret_cast<__u8*>(buf);
-    memset(u8_buf, 0, sizeof(__u8) * 0x400);
     auto u8_to_le64 = [&](__le64& num, int offset) {
         num =
                 (__le64)u8_buf[offset] |

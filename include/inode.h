@@ -5,8 +5,7 @@
 #ifndef BLFS_INODE_H
 #define BLFS_INODE_H
 
-#include "disk.h"
-
+#include <linux/types.h>
 
 /*
  * i_mode value is a combination of the following flags
@@ -78,6 +77,14 @@
 class Inode {
 public:
     Inode();
+
+    ~Inode();
+
+    void traverse_data_to_settings(void *);
+
+    void traverse_settings_to_data(void *);
+
+    static const int INODE_SIZE = 0x100;
 
     __le16 i_mode;                          // File mode.
     __le16 i_uid;                           // Lower 16-bits of Owner UID.

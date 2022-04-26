@@ -36,7 +36,7 @@ public:
         }
     }
 
-    void init_with_superblock(Superblock*);
+    bool init_block_group(int group_id, void *buf);
 
     static const ull BOOTBLOCK_OFFSET = 0;
     static const ull BOOTBLOCK_SIZE = 1024;
@@ -44,13 +44,14 @@ public:
     static const ull SUPERBLOCK_SIZE = 1024;
 
 
-    BlockGroup* block_group;
+    BlockGroup *block_group;
+    int num_block_group;
 private:
     static Disk *disk_instance;
 
-    Disk() = default;
+    Disk();
 
-    ~Disk() = default;
+    ~Disk();
 };
 
 #endif //BLFS_DISK_H

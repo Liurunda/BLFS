@@ -8,7 +8,14 @@
 class GroupDescriptor {
 public:
     GroupDescriptor();
+
     ~GroupDescriptor();
+
+    void traverse_settings_to_data(void *buf);
+
+    void traverse_data_to_settings(void *buf);
+
+    static const int GD_SIZE = 64;
 
     __le32 bg_block_bitmap_lo;              // Lower 32-bits of location of block bitmap.
     __le32 bg_inode_bitmap_lo;              // Lower 32-bits of location of inode bitmap.
