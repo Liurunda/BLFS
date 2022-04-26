@@ -36,7 +36,11 @@ public:
         }
     }
 
-    bool init_block_group(int group_id, void *buf);
+    void init_block_group(int group_id, void *buf);
+
+    void create_block_groups();
+
+    void traverse_block_metadata_to_data(int block_id, void *buf);
 
     static const ull BOOTBLOCK_OFFSET = 0;
     static const ull BOOTBLOCK_SIZE = 1024;
@@ -46,6 +50,7 @@ public:
 
     BlockGroup *block_group;
     int num_block_group;
+    int block_group_size;
 private:
     static Disk *disk_instance;
 

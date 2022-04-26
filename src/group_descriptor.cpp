@@ -4,6 +4,8 @@
 
 #include <linux/types.h>
 #include "group_descriptor.h"
+#include "superblock.h"
+#include "inode.h"
 
 GroupDescriptor::GroupDescriptor() {
 
@@ -87,4 +89,36 @@ void GroupDescriptor::traverse_settings_to_data(void *buf) {
     le16_to_u8(bg_block_bitmap_csum_hi, 0x38);
     le16_to_u8(bg_inode_bitmap_csum_hi, 0x3A);
     le32_to_u8(bg_reserved, 0x3C);
+}
+
+void GroupDescriptor::create_default_settings(int group_id) {
+    Superblock *superblock_instance = Superblock::get_instance();
+    int block_size = 2 << (10 + superblock_instance->s_log_block_size);
+    unsigned long long group_size = block_size * superblock_instance->s_blocks_per_group;
+    unsigned long long bg_block_bitmap = group_id == 0 ? 0x800 : group_id * group_size;
+    unsigned long long bg_inode_bitmap =
+            bg_block_bitmap + ((superblock_instance->s_blocks_per_group - 1) / block_size + 1) * block_size;
+    unsigned long long bg_inode_table =
+            bg_inode_bitmap + ((superblock_instance->s_inodes_per_group - 1) / block_size + 1) * block_size;
+    unsigned int num_used_blocks = (bg_inode_table - group_id * group_size) / block_size +
+                                   (Inode::INODE_SIZE * superblock_instance->s_inodes_per_group - 1) / block_size +
+                                   1;
+    unsigned int bg_free_blocks_count = superblock_instance->s_blocks_per_group - num_used_blocks;
+    unsigned int bg_free_inodes_count = superblock_instance->s_inodes_per_group;
+    unsigned int bg_used_dirs_count = 0;
+
+    bg_block_bitmap_lo = (__le32) (bg_block_bitmap & 0xFFFF);
+    bg_block_bitmap_hi = (__le32) ((bg_block_bitmap & 0xFFFF0000) >> 16);
+    bg_inode_bitmap_lo = (__le32) (bg_inode_bitmap & 0xFFFF);
+    bg_inode_bitmap_hi = (__le32) ((bg_inode_bitmap & 0xFFFF0000) >> 16);
+    bg_inode_table_lo = (__le32) (bg_inode_table & 0xFFFF);
+    bg_inode_table_hi = (__le32) ((bg_inode_table & 0xFFFF0000) >> 16);
+    bg_free_blocks_count_lo = (__le16) (bg_free_blocks_count & 0xFF);
+    bg_free_blocks_count_hi = (__le16) ((bg_free_blocks_count & 0xFF00) >> 8);
+    bg_free_inodes_count_lo = (__le16) (bg_free_inodes_count & 0xFF);
+    bg_free_inodes_count_hi = (__le16) ((bg_free_inodes_count & 0xFF00) >> 8);
+    bg_used_dirs_count_lo = (__le16) (bg_used_dirs_count & 0xFF);
+    bg_used_dirs_count_hi = (__le16) ((bg_used_dirs_count & 0xFF00) >> 8);
+
+    // remaining checksum
 }

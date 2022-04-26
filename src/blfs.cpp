@@ -4,7 +4,8 @@
 
 #define FUSE_USE_VERSION 35
 
-#include<fuse3/fuse.h>
+#include <fuse3/fuse.h>
+#include "blfs_functions.h"
 
 static int blfs_mkdir(const char *path, mode_t mode) {
     return 0;

@@ -15,6 +15,8 @@ public:
 
     void traverse_data_to_settings(void *buf);
 
+    void create_default_settings(int group_id);
+
     static const int GD_SIZE = 64;
 
     __le32 bg_block_bitmap_lo;              // Lower 32-bits of location of block bitmap.

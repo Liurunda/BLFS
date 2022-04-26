@@ -23,6 +23,10 @@ public:
 
     void traverse_inode_bitmap_to_data(void *);
 
+    void set_block_bitmap_zero();
+
+    void set_inode_bitmap_zero();
+
     const int superblock_offset = 0x400;
     Superblock *superblock; // have value only in the first block
     const int gdt_offset = 0x800;
