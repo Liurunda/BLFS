@@ -107,18 +107,18 @@ void GroupDescriptor::create_default_settings(int group_id) {
     unsigned int bg_free_inodes_count = superblock_instance->s_inodes_per_group;
     unsigned int bg_used_dirs_count = 0;
 
-    bg_block_bitmap_lo = (__le32) (bg_block_bitmap & 0xFFFF);
-    bg_block_bitmap_hi = (__le32) ((bg_block_bitmap & 0xFFFF0000) >> 16);
-    bg_inode_bitmap_lo = (__le32) (bg_inode_bitmap & 0xFFFF);
-    bg_inode_bitmap_hi = (__le32) ((bg_inode_bitmap & 0xFFFF0000) >> 16);
-    bg_inode_table_lo = (__le32) (bg_inode_table & 0xFFFF);
-    bg_inode_table_hi = (__le32) ((bg_inode_table & 0xFFFF0000) >> 16);
-    bg_free_blocks_count_lo = (__le16) (bg_free_blocks_count & 0xFF);
-    bg_free_blocks_count_hi = (__le16) ((bg_free_blocks_count & 0xFF00) >> 8);
-    bg_free_inodes_count_lo = (__le16) (bg_free_inodes_count & 0xFF);
-    bg_free_inodes_count_hi = (__le16) ((bg_free_inodes_count & 0xFF00) >> 8);
-    bg_used_dirs_count_lo = (__le16) (bg_used_dirs_count & 0xFF);
-    bg_used_dirs_count_hi = (__le16) ((bg_used_dirs_count & 0xFF00) >> 8);
+    bg_block_bitmap_lo = (__le32) (bg_block_bitmap & 0xFFFFFFFF);
+    bg_block_bitmap_hi = (__le32) ((bg_block_bitmap & 0xFFFFFFFF00000000) >> 32);
+    bg_inode_bitmap_lo = (__le32) (bg_inode_bitmap & 0xFFFFFFFF);
+    bg_inode_bitmap_hi = (__le32) ((bg_inode_bitmap & 0xFFFFFFFF00000000) >> 32);
+    bg_inode_table_lo = (__le32) (bg_inode_table & 0xFFFFFFFF);
+    bg_inode_table_hi = (__le32) ((bg_inode_table & 0xFFFFFFFF00000000) >> 32);
+    bg_free_blocks_count_lo = (__le16) (bg_free_blocks_count & 0xFFFF);
+    bg_free_blocks_count_hi = (__le16) ((bg_free_blocks_count & 0xFFFF0000) >> 16);
+    bg_free_inodes_count_lo = (__le16) (bg_free_inodes_count & 0xFFFF);
+    bg_free_inodes_count_hi = (__le16) ((bg_free_inodes_count & 0xFFFF0000) >> 16);
+    bg_used_dirs_count_lo = (__le16) (bg_used_dirs_count & 0xFFFF);
+    bg_used_dirs_count_hi = (__le16) ((bg_used_dirs_count & 0xFFFF0000) >> 16);
 
     // remaining checksum
 }

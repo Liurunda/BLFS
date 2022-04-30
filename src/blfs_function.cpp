@@ -34,8 +34,9 @@ int blfunc_init() {
             return -1;
         }
         for (int i = 0; i < Disk::get_instance()->num_block_group; i++) {
-            Disk::get_instance()->traverse_block_metadata_to_data(i, block_group_buf);
-            if (write(fd, block_group_buf, Disk::get_instance()->block_group_size) < 0) {
+            int data_size = Disk::get_instance()->traverse_block_metadata_to_data(i, block_group_buf);
+            lseek64(fd, i * Disk::get_instance()->block_group_size, SEEK_SET);
+            if (write(fd, block_group_buf, data_size) < 0) {
                 perror("Failed to write block group data into disk");
                 return -1;
             }
@@ -46,7 +47,8 @@ int blfunc_init() {
     else {
         int fd = open(DISK_PATH, O_RDONLY | O_DIRECT | O_NOATIME);
         void *block_group_data = nullptr;
-        if (posix_memalign(&block_group_data, 512, Disk::get_instance()->block_group_size) < 0) {
+        int ret = posix_memalign(&block_group_data, 512, Disk::get_instance()->block_group_size);
+        if (ret < 0) {
             perror("Failed to alloc aligned buffer for block group data");
             return -1;
         }

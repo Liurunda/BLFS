@@ -91,7 +91,7 @@ void Disk::create_block_groups() {
     }
 }
 
-void Disk::traverse_block_metadata_to_data(int group_id, void *buf) {
+int Disk::traverse_block_metadata_to_data(int group_id, void *buf) {
     __u8 *u8_buf = reinterpret_cast<__u8 *>(buf);
     const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
     if (group_id == 0) {
@@ -110,4 +110,9 @@ void Disk::traverse_block_metadata_to_data(int group_id, void *buf) {
     for (int i = 0; i < Superblock::get_instance()->s_inodes_per_group; i++)
         block_group[group_id].inode_table[i].traverse_settings_to_data(
                 u8_buf + bg_inode_table - group_id * block_group_size + i * Inode::INODE_SIZE);
+    int block_size = 2 << (10 + Superblock::get_instance()->s_log_block_size);
+    int num_inode_table_blocks =
+            (Superblock::get_instance()->s_inodes_per_group * Inode::INODE_SIZE - 1) / block_size + 1;
+    if (group_id == 0) return bg_inode_table + num_inode_table_blocks * block_size;
+    else return bg_inode_table - group_id * block_group_size + num_inode_table_blocks * block_size;
 }

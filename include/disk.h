@@ -40,7 +40,8 @@ public:
 
     void create_block_groups();
 
-    void traverse_block_metadata_to_data(int block_id, void *buf);
+    // returns size of block metadata
+    int traverse_block_metadata_to_data(int block_id, void *buf);
 
     static const ull BOOTBLOCK_OFFSET = 0;
     static const ull BOOTBLOCK_SIZE = 1024;
