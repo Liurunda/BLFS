@@ -31,10 +31,18 @@ Superblock::Superblock() {
 
     // set checksum
     s_checksum = 0;
-    char* buf = new char[Superblock::SUPERBLOCK_SIZE];
+    char* buf = new char[Superblock::SUPERBLOCK_SIZE];memset(buf,0,Superblock::SUPERBLOCK_SIZE);
     traverse_settings_to_data(buf);
     buf[Superblock::SUPERBLOCK_SIZE - 4] = '\0';
-    // s_checksum = crc32c::Crc32c(buf, ~0);
+    //s_checksum = crc32c::Crc32c(buf, Superblock::SUPERBLOCK_SIZE - 4);
+    s_checksum = crc32c::Crc32c(buf, 20);
+    printf("log block size %x\n",s_log_block_size);
+
+    printf("inode count %d checksum is %x\n",s_inodes_count, s_checksum);
+    for(int i=20;i<28;++i){
+        printf("buf[%x] == %x ",i,buf[i]);
+    }
+    //s_checksum = crc32c::Crc32c(buf, ~0);
     delete[] buf;
 }
 
@@ -296,10 +304,17 @@ void Superblock::traverse_data_to_settings(void *buf) {
 }
 
 bool Superblock::validate_checksum() {
-    char* buf = new char[Superblock::SUPERBLOCK_SIZE];
+    printf("%x\n",s_checksum);
+    char* buf = new char[Superblock::SUPERBLOCK_SIZE];memset(buf,0,Superblock::SUPERBLOCK_SIZE);
+    printf("log block size %x\n",s_log_block_size);
     traverse_settings_to_data(buf);
     buf[Superblock::SUPERBLOCK_SIZE - 4] = '\0';
-    __le32 checksum = crc32c::Crc32c(buf, ~0);
+    //__le32 checksum = crc32c::Crc32c(buf, ~0);
+    __le32 checksum = crc32c::Crc32c(buf, 20);//crc32c::Crc32c(buf, Superblock::SUPERBLOCK_SIZE - 4);
+    printf("%x %x %x\n",checksum, s_checksum,crc32c::Crc32c(buf, 20));
+    for(int i=20;i<28;++i){
+        printf("buf[%x] == %x",i,buf[i]);
+    }
     delete[] buf;
     return checksum == s_checksum;
 }

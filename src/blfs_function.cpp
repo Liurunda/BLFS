@@ -58,7 +58,7 @@ int blfunc_init() {
                 perror("Failed to read block group data into disk");
                 return -1;
             }
-            Disk::get_instance()->init_block_group(i, block_group_data);
+            Disk::get_instance()->init_block_group(i, block_group_data);// problem here?
         }
         if (!Superblock::get_instance()->validate_checksum()) {
             perror("Superblock checksum validation failed");

@@ -17,7 +17,7 @@ static int blfs_rename(const char *oldpath, const char *newpath, unsigned int fl
 }
 
 static int blfs_open(const char *path, struct fuse_file_info *fi) {
-    puts("blfs open");
+    perror("blfs open");
     return 0;
 }
 
@@ -80,5 +80,6 @@ static struct fuse_operations blfs_ops = {
 };
 
 int main(int argc, char *argv[]) {
+    perror("hello!");
     return fuse_main(argc, argv, &blfs_ops, nullptr);
 }
