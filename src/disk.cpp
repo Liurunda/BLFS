@@ -99,14 +99,14 @@ int Disk::traverse_block_metadata_to_data(int group_id, void *buf) {
         for (int i = 0; i < num_block_group; i++)
             block_group[0].gdt[i].traverse_settings_to_data(u8_buf + 0x800 + GroupDescriptor::GD_SIZE * i);
     }
-    unsigned long long bg_block_bitmap = ((unsigned long long) current_gdt.bg_block_bitmap_hi << 32) |
-                                         (unsigned long long) current_gdt.bg_block_bitmap_lo;
-    unsigned long long bg_inode_bitmap = ((unsigned long long) current_gdt.bg_inode_bitmap_hi << 32) |
-                                         (unsigned long long) current_gdt.bg_inode_bitmap_lo;
-    unsigned long long bg_inode_table = ((unsigned long long) current_gdt.bg_inode_table_hi << 32) |
-                                        (unsigned long long) current_gdt.bg_inode_table_lo;
-    block_group[group_id].traverse_block_bitmap_to_data(u8_buf + bg_block_bitmap - group_id * block_group_size);
-    block_group[group_id].traverse_inode_bitmap_to_data(u8_buf + bg_inode_bitmap - group_id * block_group_size);
+    unsigned long long bg_block_bitmap =
+            ((ull) current_gdt.bg_block_bitmap_hi << 32) | (ull) current_gdt.bg_block_bitmap_lo;
+    unsigned long long bg_inode_bitmap =
+            ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;
+    unsigned long long bg_inode_table =
+            ((ull) current_gdt.bg_inode_table_hi << 32) | (ull) current_gdt.bg_inode_table_lo;
+    block_group[group_id].traverse_block_bitmap_to_data(u8_buf + bg_block_bitmap - (ull) group_id * block_group_size);
+    block_group[group_id].traverse_inode_bitmap_to_data(u8_buf + bg_inode_bitmap - (ull) group_id * block_group_size);
     for (int i = 0; i < Superblock::get_instance()->s_inodes_per_group; i++)
         block_group[group_id].inode_table[i].traverse_settings_to_data(
                 u8_buf + bg_inode_table - group_id * block_group_size + i * Inode::INODE_SIZE);

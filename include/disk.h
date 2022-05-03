@@ -51,7 +51,7 @@ public:
 
     BlockGroup *block_group;
     int num_block_group;
-    int block_group_size;
+    ull block_group_size;
 private:
     static Disk *disk_instance;
 

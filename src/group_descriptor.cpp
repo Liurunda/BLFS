@@ -95,7 +95,7 @@ void GroupDescriptor::create_default_settings(int group_id) {
     Superblock *superblock_instance = Superblock::get_instance();
     int block_size = 2 << (10 + superblock_instance->s_log_block_size);
     unsigned long long group_size = block_size * superblock_instance->s_blocks_per_group;
-    unsigned long long bg_block_bitmap = group_id == 0 ? 0x800 : group_id * group_size;
+    unsigned long long bg_block_bitmap = group_id == 0 ? block_size : group_id * group_size;
     unsigned long long bg_inode_bitmap =
             bg_block_bitmap + ((superblock_instance->s_blocks_per_group - 1) / block_size + 1) * block_size;
     unsigned long long bg_inode_table =

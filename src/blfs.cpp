@@ -8,6 +8,11 @@
 #include <stdio.h>
 #include "blfs_functions.h"
 
+static int blfs_getattr(const char *path, struct stat *buf, struct fuse_file_info *fi) {
+    puts("blfs getattr");
+    return 0;
+}
+
 static int blfs_mkdir(const char *path, mode_t mode) {
     return 0;
 }
@@ -49,7 +54,7 @@ static void *blfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg) {
 }
 
 static struct fuse_operations blfs_ops = {
-        .getattr        = nullptr,
+        .getattr        = blfs_getattr,
         .readlink       = nullptr,
         .mknod          = nullptr,
         .mkdir          = blfs_mkdir,
@@ -80,5 +85,6 @@ static struct fuse_operations blfs_ops = {
 };
 
 int main(int argc, char *argv[]) {
-    return fuse_main(argc, argv, &blfs_ops, nullptr);
+    int ret = fuse_main(argc, argv, &blfs_ops, nullptr);
+    return ret;
 }
