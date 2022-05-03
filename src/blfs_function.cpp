@@ -54,9 +54,17 @@ int blfunc_init() {
         }
         for (int i = 0; i < Disk::get_instance()->num_block_group; i++) {
             lseek64(fd, i * Disk::get_instance()->block_group_size, SEEK_SET);
-            if (read(fd, block_group_data, Disk::get_instance()->block_group_size) < 0) {
-                perror("Failed to read block group data into disk");
-                return -1;
+            if (i == 0) {
+                if (read(fd, block_group_data, Disk::get_instance()->block_group_size) < 0) {
+                    perror("Failed to read block group data into disk");
+                    return -1;
+                }
+            } else {
+                int data_size = Disk::get_instance()->get_metadata_size(i);
+                if (read(fd, block_group_data, data_size) < 0) {
+                    perror("Failed to read block group data into disk");
+                    return -1;
+                }
             }
             Disk::get_instance()->init_block_group(i, block_group_data);
         }

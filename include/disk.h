@@ -43,6 +43,8 @@ public:
     // returns size of block metadata
     int traverse_block_metadata_to_data(int block_id, void *buf);
 
+    int get_metadata_size(int group_id);
+
     static const ull BOOTBLOCK_OFFSET = 0;
     static const ull BOOTBLOCK_SIZE = 1024;
     static const ull SUPERBLOCK_OFFSET = 1024;

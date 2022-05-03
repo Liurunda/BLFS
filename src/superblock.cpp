@@ -27,14 +27,13 @@ Superblock::Superblock() {
     s_magic = 0xEF53;
 
     s_checksum_type = 1;                // the only valid checksum algorithm crc32
-    // s_checksum_seed = crc32c::Crc32c(s_uuid, ~0);
+    s_checksum_seed = crc32c::Crc32c(s_uuid, 8);
 
     // set checksum
     s_checksum = 0;
     char* buf = new char[Superblock::SUPERBLOCK_SIZE];
     traverse_settings_to_data(buf);
-    buf[Superblock::SUPERBLOCK_SIZE - 4] = '\0';
-    // s_checksum = crc32c::Crc32c(buf, ~0);
+    s_checksum = crc32c::Crc32c(buf, 0x400 - 4);
     delete[] buf;
 }
 
@@ -298,8 +297,7 @@ void Superblock::traverse_data_to_settings(void *buf) {
 bool Superblock::validate_checksum() {
     char* buf = new char[Superblock::SUPERBLOCK_SIZE];
     traverse_settings_to_data(buf);
-    buf[Superblock::SUPERBLOCK_SIZE - 4] = '\0';
-    __le32 checksum = crc32c::Crc32c(buf, ~0);
+    __le32 checksum = crc32c::Crc32c(buf, 0x400 - 4);
     delete[] buf;
     return checksum == s_checksum;
 }

@@ -99,17 +99,24 @@ int Disk::traverse_block_metadata_to_data(int group_id, void *buf) {
         for (int i = 0; i < num_block_group; i++)
             block_group[0].gdt[i].traverse_settings_to_data(u8_buf + 0x800 + GroupDescriptor::GD_SIZE * i);
     }
-    unsigned long long bg_block_bitmap =
-            ((ull) current_gdt.bg_block_bitmap_hi << 32) | (ull) current_gdt.bg_block_bitmap_lo;
-    unsigned long long bg_inode_bitmap =
-            ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;
-    unsigned long long bg_inode_table =
-            ((ull) current_gdt.bg_inode_table_hi << 32) | (ull) current_gdt.bg_inode_table_lo;
+    ull bg_block_bitmap = ((ull) current_gdt.bg_block_bitmap_hi << 32) | (ull) current_gdt.bg_block_bitmap_lo;
+    ull bg_inode_bitmap = ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;
+    ull bg_inode_table = ((ull) current_gdt.bg_inode_table_hi << 32) | (ull) current_gdt.bg_inode_table_lo;
     block_group[group_id].traverse_block_bitmap_to_data(u8_buf + bg_block_bitmap - (ull) group_id * block_group_size);
     block_group[group_id].traverse_inode_bitmap_to_data(u8_buf + bg_inode_bitmap - (ull) group_id * block_group_size);
     for (int i = 0; i < Superblock::get_instance()->s_inodes_per_group; i++)
         block_group[group_id].inode_table[i].traverse_settings_to_data(
                 u8_buf + bg_inode_table - group_id * block_group_size + i * Inode::INODE_SIZE);
+    int block_size = 2 << (10 + Superblock::get_instance()->s_log_block_size);
+    int num_inode_table_blocks =
+            (Superblock::get_instance()->s_inodes_per_group * Inode::INODE_SIZE - 1) / block_size + 1;
+    if (group_id == 0) return bg_inode_table + num_inode_table_blocks * block_size;
+    else return bg_inode_table - group_id * block_group_size + num_inode_table_blocks * block_size;
+}
+
+int Disk::get_metadata_size(int group_id) {
+    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
+    ull bg_inode_table = ((ull) current_gdt.bg_inode_table_hi << 32) | (ull) current_gdt.bg_inode_table_lo;
     int block_size = 2 << (10 + Superblock::get_instance()->s_log_block_size);
     int num_inode_table_blocks =
             (Superblock::get_instance()->s_inodes_per_group * Inode::INODE_SIZE - 1) / block_size + 1;
