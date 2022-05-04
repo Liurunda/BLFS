@@ -3,6 +3,7 @@
 //
 
 #include "disk.h"
+#include "blfs_functions.h"
 
 
 Disk *Disk::disk_instance = nullptr;
@@ -45,8 +46,8 @@ void Disk::init_block_group(int group_id, void *buf) {
         block_group[group_id].inode_table = new Inode[Superblock::get_instance()->s_inodes_per_group];
         block_group[group_id].traverse_data_to_block_bitmap(u8_buf + bg_block_bitmap);
         block_group[group_id].traverse_data_to_inode_bitmap(u8_buf + bg_inode_bitmap);
-        for (int i = 0; i < bg_inode_table - bg_inode_bitmap; i++)
-            block_group[group_id].inode_table->traverse_data_to_settings(
+        for (int i = 0; i < Superblock::get_instance()->s_inodes_per_group; i++)
+            block_group[group_id].inode_table[i].traverse_data_to_settings(
                     u8_buf + bg_inode_table + i * Inode::INODE_SIZE);
     } else {
         // initialize other groups
@@ -66,8 +67,8 @@ void Disk::init_block_group(int group_id, void *buf) {
         block_group[group_id].inode_table = new Inode[Superblock::get_instance()->s_inodes_per_group];
         block_group[group_id].traverse_data_to_block_bitmap(u8_buf);
         block_group[group_id].traverse_data_to_inode_bitmap(u8_buf + bg_inode_bitmap - bg_block_bitmap);
-        for (int i = 0; i < bg_inode_table - bg_inode_bitmap; i++)
-            block_group[group_id].inode_table->traverse_data_to_settings(
+        for (int i = 0; i < Superblock::get_instance()->s_inodes_per_group; i++)
+            block_group[group_id].inode_table[i].traverse_data_to_settings(
                     u8_buf + bg_inode_table - bg_inode_bitmap + i * Inode::INODE_SIZE);
     }
 }
@@ -97,6 +98,9 @@ void Disk::create_block_groups() {
         for (int i = 0; i < superblock->s_inodes_per_group; i++) block_group[group_id].inode_bitmap[i] = false;
         block_group[group_id].inode_table = new Inode[superblock->s_inodes_per_group];
     }
+
+    char root_path[2] = {'/', '\0'};
+    create_inode(root_path, 0);
 }
 
 int Disk::traverse_block_metadata_to_data(int group_id, void *buf) {

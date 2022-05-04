@@ -5,7 +5,36 @@
 #include "inode.h"
 
 Inode::Inode() {
-
+    i_mode = 0;
+    i_uid = 0;
+    i_size_lo = 0;
+    i_atime = 0;
+    i_ctime = 0;
+    i_mtime = 0;
+    i_gid = 0;
+    i_links_count = 0;
+    i_blocks_lo = 0;
+    i_flags = 0;
+    i_osd1.l_i_version = 0;
+    for (int i = 0; i < 15; i++) i_block[i] = 0;
+    i_generation = 0;
+    i_file_acl_lo = 0;
+    i_size_high = 0;
+    i_obso_faddr = 0;
+    i_osd2.l_i_blocks_high = 0;
+    i_osd2.l_i_file_acl_high = 0;
+    i_osd2.l_i_uid_high = 0;
+    i_osd2.l_i_gid_high = 0;
+    i_osd2.l_i_checksum_lo = 0;
+    i_osd2.l_i_reserved = 0;
+    i_extra_isize = 0;
+    i_checksum_hi = 0;
+    i_ctime_extra = 0;
+    i_mtime_extra = 0;
+    i_crtime = 0;
+    i_crtime_extra = 0;
+    i_version_hi = 0;
+    i_projid = 0;
 }
 
 Inode::~Inode() {
