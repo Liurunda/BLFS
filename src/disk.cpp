@@ -24,10 +24,11 @@ void Disk::init_block_group(int group_id, void *buf) {
     if (group_id == 0) {
         // contains superblock and gdt
         block_group[group_id].superblock = Superblock::get_instance();
-        block_group[group_id].superblock->traverse_data_to_settings(u8_buf + 0x400);
+        block_group[group_id].superblock->traverse_data_to_settings(u8_buf + BlockGroup::SUPERBLOCK_OFFSET);
         block_group[group_id].gdt = new GroupDescriptor[num_block_group];
         for (int i = 0; i < num_block_group; i++)
-            block_group[group_id].gdt[i].traverse_data_to_settings(u8_buf + 0x800 + i * GroupDescriptor::GD_SIZE);
+            block_group[group_id].gdt[i].traverse_data_to_settings(
+                    u8_buf + BlockGroup::GDT_OFFSET + i * GroupDescriptor::GD_SIZE);
         GroupDescriptor &current_gdt = block_group[group_id].gdt[group_id];
         unsigned long long bg_block_bitmap = ((unsigned long long) current_gdt.bg_block_bitmap_hi << 32) |
                                              (unsigned long long) current_gdt.bg_block_bitmap_lo;
@@ -102,9 +103,10 @@ int Disk::traverse_block_metadata_to_data(int group_id, void *buf) {
     __u8 *u8_buf = reinterpret_cast<__u8 *>(buf);
     const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
     if (group_id == 0) {
-        Superblock::get_instance()->traverse_settings_to_data(u8_buf + 0x400);
+        Superblock::get_instance()->traverse_settings_to_data(u8_buf + BlockGroup::SUPERBLOCK_OFFSET);
         for (int i = 0; i < num_block_group; i++)
-            block_group[0].gdt[i].traverse_settings_to_data(u8_buf + 0x800 + GroupDescriptor::GD_SIZE * i);
+            block_group[0].gdt[i].traverse_settings_to_data(
+                    u8_buf + BlockGroup::GDT_OFFSET + GroupDescriptor::GD_SIZE * i);
     }
     ull bg_block_bitmap = ((ull) current_gdt.bg_block_bitmap_hi << 32) | (ull) current_gdt.bg_block_bitmap_lo;
     ull bg_inode_bitmap = ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;

@@ -27,9 +27,9 @@ public:
 
     void set_inode_bitmap_zero();
 
-    const int superblock_offset = 0x400;
+    static const int SUPERBLOCK_OFFSET = 0x400;
     Superblock *superblock; // have value only in the first block
-    const int gdt_offset = 0x800;
+    static const int GDT_OFFSET = 0x800;
     GroupDescriptor *gdt; // have value only in the first block
     unsigned long long block_bitmap_offset;
     bool *block_bitmap;
