@@ -27,7 +27,7 @@ void Disk::init_block_group(int group_id, void *buf) {
         block_group[group_id].superblock->traverse_data_to_settings(u8_buf + 0x400);
         block_group[group_id].gdt = new GroupDescriptor[num_block_group];
         for (int i = 0; i < num_block_group; i++)
-            block_group[group_id].gdt[i].traverse_data_to_settings(u8_buf + i * GroupDescriptor::GD_SIZE);
+            block_group[group_id].gdt[i].traverse_data_to_settings(u8_buf + 0x800 + i * GroupDescriptor::GD_SIZE);
         GroupDescriptor &current_gdt = block_group[group_id].gdt[group_id];
         unsigned long long bg_block_bitmap = ((unsigned long long) current_gdt.bg_block_bitmap_hi << 32) |
                                              (unsigned long long) current_gdt.bg_block_bitmap_lo;
