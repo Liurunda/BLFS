@@ -85,9 +85,16 @@ void Disk::create_block_groups() {
                                                     (unsigned long long) current_gdt.bg_inode_bitmap_lo;
         block_group[group_id].inode_table_offset = ((unsigned long long) current_gdt.bg_inode_table_hi << 32) |
                                                    (unsigned long long) current_gdt.bg_inode_table_lo;
-        block_group[group_id].block_bitmap = new bool[Superblock::get_instance()->s_blocks_per_group];
-        block_group[group_id].inode_bitmap = new bool[Superblock::get_instance()->s_inodes_per_group];
-        block_group[group_id].inode_table = new Inode[Superblock::get_instance()->s_inodes_per_group];
+        Superblock *superblock = Superblock::get_instance();
+        block_group[group_id].block_bitmap = new bool[superblock->s_blocks_per_group];
+        for (int i = 0; i < superblock->s_blocks_per_group; i++) block_group[group_id].block_bitmap[i] = false;
+        // set bitmap whose block used by metadata to true
+        ull bytes_used = block_group[group_id].inode_table_offset + Inode::INODE_SIZE * superblock->s_inodes_per_group;
+        int block_used = (bytes_used - 1) / block_group_size + 1;
+        for (int i = 0; i < block_used; i++) block_group[group_id].block_bitmap[i] = true;
+        block_group[group_id].inode_bitmap = new bool[superblock->s_inodes_per_group];
+        for (int i = 0; i < superblock->s_inodes_per_group; i++) block_group[group_id].inode_bitmap[i] = false;
+        block_group[group_id].inode_table = new Inode[superblock->s_inodes_per_group];
     }
 }
 
