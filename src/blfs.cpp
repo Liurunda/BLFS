@@ -82,6 +82,32 @@ static int blfs_opendir(const char *path, struct fuse_file_info *fi) {
 
 static int blfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t off, struct fuse_file_info *fi,
                         enum fuse_readdir_flags flags) {
+    int inode_id = find_inode_by_path(path);
+    if (inode_id < 0) return -ENOENT;
+    Inode &inode = get_inode_by_inode_id(inode_id);
+    if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
+    if (filler(buf, ".", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
+    if (inode_id != 0)
+        if (filler(buf, "..", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
+    ull dir_size = ((ull) inode.i_size_high << 32) | (ull) inode.i_size_lo;
+    ull num_files = dir_size / sizeof(DirectoryItem);
+    int block_size = Disk::get_instance()->block_size;
+    int dir_last_block = dir_size / block_size;
+    int dir_item_per_block = block_size / sizeof(DirectoryItem);
+    DirectoryItem *items = new DirectoryItem[dir_item_per_block];
+    for (int i = 0; i < dir_last_block; i++) {
+        Disk::get_instance()->read_from_block(inode.get_kth_block_id(i), items);
+        if (i == dir_last_block - 1) {
+            int num_file_offset = num_files % dir_item_per_block;
+            for (int j = 0; j < num_file_offset; j++)
+                if (filler(buf, items[j].name, nullptr, 0, FUSE_FILL_DIR_PLUS) != 0)
+                    return 1;
+        } else {
+            for (int j = 0; j < dir_item_per_block; j++)
+                if (filler(buf, items[j].name, nullptr, 0, FUSE_FILL_DIR_PLUS) != 0)
+                    return 1;
+        }
+    }
     puts("blfs readdir");
     return 0;
 }
@@ -98,8 +124,9 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     // find directory inode
     int path_length = strlen(path);
     for (; path_length > 0; path_length--) if (path[path_length] == '/') break;
-    char *path_dir = (char *) malloc((path_length + 1) * sizeof(char));
-    memcpy(path_dir, path, path_length * sizeof(char));
+    char *path_dir = (char *) malloc((path_length + 2) * sizeof(char));
+    memcpy(path_dir, path, (path_length + 1) * sizeof(char));
+    path_dir[path_length + 1] = '\0';
     int inode_id = find_inode_by_path(path_dir);
     if (inode_id < 0) return -ENOENT;
     Inode &inode = get_inode_by_inode_id(inode_id);
@@ -110,12 +137,18 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     int block_size = Disk::get_instance()->block_size;
     int dir_last_block = dir_size / block_size;
     int new_inode_id = -1;
+    int dir_item_per_block = block_size / sizeof(DirectoryItem);
+    DirectoryItem *items = new DirectoryItem[dir_item_per_block];
     if (dir_size % block_size == 0) {
         // add new block
+        int block_id = Disk::get_instance()->acquire_unused_block();
+        inode.add_block(block_id);
+        new_inode_id = Disk::get_instance()->acquire_unused_inode();
+        items[0].inode_id = new_inode_id;
+        memcpy(items[0].name, path + path_length + 1, strlen(path) - path_length - 1);
+        Disk::get_instance()->update_data(block_id, items);
     } else {
-        int dir_item_per_block = block_size / sizeof(DirectoryItem);
         int file_offset = num_files % dir_item_per_block;
-        DirectoryItem *items = new DirectoryItem[dir_item_per_block];
         Disk::get_instance()->read_from_block(inode.get_kth_block_id(dir_last_block), items);
         new_inode_id = Disk::get_instance()->acquire_unused_inode();
         items[file_offset].inode_id = new_inode_id;
@@ -125,6 +158,10 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     Inode &new_inode = get_inode_by_inode_id(new_inode_id);
     new_inode.i_mode = (__le16) (mode & 0xFFFF);
     Disk::get_instance()->update_inode(new_inode_id);
+    dir_size += sizeof(DirectoryItem);
+    inode.i_size_high = (__le32) ((dir_size & 0xFFFFFFFF00000000) >> 32);
+    inode.i_size_lo = (__le32) (dir_size & 0xFFFFFFFF);
+    Disk::get_instance()->update_inode(inode_id);
     return 0;
 }
 

@@ -94,6 +94,8 @@ public:
 
     int get_kth_block_id(int k);
 
+    void add_block(int block_id);
+
     static const int INODE_SIZE = 0x100;
 
     __le16 i_mode;                          // File mode.

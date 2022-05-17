@@ -184,9 +184,6 @@ int create_inode(const char *path, int flags) {
         Inode &current_inode = disk->block_group[0].inode_table[inode];
         // use standard flags: drwxr-xr-x
         current_inode.i_mode = S_IXOTH | S_IROTH | S_IXGRP | S_IRGRP | S_IXUSR | S_IWUSR | S_IRUSR | S_IFDIR;
-        int block_id = disk->acquire_unused_block();
-        current_inode.i_block[0] = block_id;
-        disk->update_null_data(block_id);
         disk->update_inode(inode);
     } else {
         puts("Not Implemented");

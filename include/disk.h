@@ -84,7 +84,6 @@ private:
     void *block_buf;
     void *empty_buf;
     void *buf; // pre-allocated enough space to serialize metadata
-    int disk_fd;
 };
 
 #endif //BLFS_DISK_H

@@ -24,7 +24,6 @@ Disk::Disk() {
     }
     empty_buf = malloc(block_size);
     buf = malloc(Inode::INODE_SIZE * superblock_instance->s_inodes_per_group + block_size);
-    disk_fd = open(DISK_PATH, O_RDONLY | O_DIRECT | O_NOATIME);
 }
 
 Disk::~Disk() {
@@ -32,7 +31,6 @@ Disk::~Disk() {
     free(block_buf);
     free(empty_buf);
     free(buf);
-    close(disk_fd);
 }
 
 void Disk::init_block_group(int group_id, void *buf) {
@@ -249,17 +247,22 @@ void Disk::read_from_block(int block_id, void *data) {
 }
 
 int Disk::write_block(int block_id, void *data) {
+    int disk_fd = open(DISK_PATH, O_RDWR | O_DIRECT | O_NOATIME);
     memcpy(block_buf, data, block_size);
     ull offset = block_id * block_size;
     lseek64(disk_fd, offset, SEEK_SET);
-    return write(disk_fd, block_buf, block_size);
+    int res = write(disk_fd, block_buf, block_size);
+    close(disk_fd);
+    return res;
 }
 
 int Disk::read_block(int block_id, void *data) {
+    int disk_fd = open(DISK_PATH, O_RDWR | O_DIRECT | O_NOATIME);
     ull offset = block_id * block_size;
     lseek64(disk_fd, offset, SEEK_SET);
     int res = read(disk_fd, block_buf, block_size);
     if (res < 0) return res;
     else memcpy(data, block_buf, block_size);
+    close(disk_fd);
     return res;
 }

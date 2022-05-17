@@ -5,6 +5,7 @@
 #include "inode.h"
 #include "disk.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 Inode::Inode() {
     i_mode = 0;
@@ -184,4 +185,13 @@ int Inode::get_kth_block_id(int k) {
         return id == 0 ? -1 : id;
     }
     return -1; // block id too big
+}
+
+void Inode::add_block(int block_id) {
+    for (int i = 0; i < 12; i++)
+        if (i_block[i] == 0) {
+            i_block[i] = block_id;
+            return;
+        }
+    puts("Inode add block not implemented");
 }
