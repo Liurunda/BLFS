@@ -147,32 +147,18 @@ int create_inode(const char *path, int flags) {
     // should be locked when multi-thread
     Disk *disk = Disk::get_instance();
     Superblock *superblock = Superblock::get_instance();
-    bool found = false;
-    int inode = -1;
-    int group_id = 0, inode_id = 0;
-    for (group_id = 0; group_id < disk->num_block_group; group_id++) {
-        for (inode_id = 0; inode_id < superblock->s_inodes_per_group; inode_id++) {
-            if (!disk->block_group[group_id].inode_bitmap[inode_id]) {
-                found = true;
-                inode = group_id * superblock->s_inodes_per_group + inode_id;
-                break;
-            }
-        }
-        if (found) break;
-    }
+    int inode = disk->acquire_unused_inode();
+    int group_id = inode / superblock->s_inodes_per_group;
     if (parent_inode == -1) {
         // create root directory
         assert(inode == 0);
-        disk->block_group[0].inode_bitmap[0] = true;
-        Inode &current_inode = disk->block_group[0].inode_table[0];
+        Inode &current_inode = disk->block_group[0].inode_table[inode];
         // use standard flags: drwxr-xr-x
         current_inode.i_mode = S_IXOTH | S_IROTH | S_IXGRP | S_IRGRP | S_IXUSR | S_IWUSR | S_IRUSR | S_IFDIR;
-        for (int block_id = 0; block_id < superblock->s_blocks_per_group; block_id++) {
-            if (!disk->block_group[group_id].block_bitmap[block_id]) {
-                current_inode.i_block[0] = block_id;
-                break;
-            }
-        }
+        int block_id = disk->acquire_unused_block();
+        current_inode.i_block[0] = block_id;
+        disk->update_null_data(block_id);
+        disk->update_inode(inode);
     } else {
         puts("Not Implemented");
         return -1;

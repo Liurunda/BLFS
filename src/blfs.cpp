@@ -31,6 +31,10 @@ static int blfs_mkdir(const char *path, mode_t mode) {
     return 0;
 }
 
+static int blfs_unlink(const char *path) {
+    return 0;
+}
+
 static int blfs_rename(const char *oldpath, const char *newpath, unsigned int flags) {
     puts("blfs rename");
     return 0;
@@ -71,8 +75,8 @@ static int blfs_opendir(const char *path, struct fuse_file_info *fi) {
     return 0;
 }
 
-static int
-blfs_readdir(const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info *, enum fuse_readdir_flags) {
+static int blfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t off, struct fuse_file_info *fi,
+                        enum fuse_readdir_flags flags) {
     puts("blfs readdir");
     return 0;
 }

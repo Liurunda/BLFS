@@ -49,11 +49,15 @@ public:
 
     void update_data(int block_id, void *data);
 
+    void update_null_data(int block_id);
+
     int acquire_unused_block(); //空block编号
 
     int acquire_unused_inode();
 
     void release_block(int block_id);
+
+    void read_from_block(int block_id, void *data);
 
 
     static const ull BOOTBLOCK_OFFSET = 0;
@@ -75,7 +79,10 @@ private:
 
     int write_block(int block_id, void *data);
 
+    int read_block(int block_id, void *data);
+
     void *block_buf;
+    void *empty_buf;
     void *buf; // pre-allocated enough space to serialize metadata
     int disk_fd;
 };

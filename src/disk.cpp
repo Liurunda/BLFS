@@ -22,6 +22,7 @@ Disk::Disk() {
     if (posix_memalign(&block_buf, 512, block_size) < 0) {
         perror("Error in block buf memory allocation");
     }
+    empty_buf = malloc(block_size);
     buf = malloc(Inode::INODE_SIZE * superblock_instance->s_inodes_per_group + block_size);
     disk_fd = open(DISK_PATH, O_RDONLY | O_DIRECT | O_NOATIME);
 }
@@ -29,7 +30,9 @@ Disk::Disk() {
 Disk::~Disk() {
     delete[] block_group;
     free(block_buf);
+    free(empty_buf);
     free(buf);
+    close(disk_fd);
 }
 
 void Disk::init_block_group(int group_id, void *buf) {
@@ -179,6 +182,12 @@ void Disk::update_data(int block_id, void *data) {
     }
 }
 
+void Disk::update_null_data(int block_id) {
+    if (write_block(block_id, empty_buf) < 0) {
+        perror("update null data error");
+    }
+}
+
 int Disk::acquire_unused_block() {
     int block_id = -1;
     bool found = false;
@@ -233,9 +242,23 @@ void Disk::release_block(int block_id) {
     }
 }
 
+void Disk::read_from_block(int block_id, void *data) {
+    if (read_block(block_id, data) < 0) {
+        perror("Error occurred when read from block");
+    }
+}
+
 int Disk::write_block(int block_id, void *data) {
     memcpy(block_buf, data, block_size);
     ull offset = block_id * block_size;
     lseek64(disk_fd, offset, SEEK_SET);
     return write(disk_fd, block_buf, block_size);
+}
+
+int Disk::read_block(int block_id, void *data) {
+    ull offset = block_id * block_size;
+    lseek64(disk_fd, offset, SEEK_SET);
+    int res = read(disk_fd, block_buf, block_size);
+    if (res < 0) return res;
+    else memcpy(data, block_buf, block_size);
 }
