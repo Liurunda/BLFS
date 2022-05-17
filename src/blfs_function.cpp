@@ -88,8 +88,8 @@ int blfunc_init() {
 }
 
 int find_inode_by_name(const char *name, Inode parent_inode,Inode &child_inode){
-    int block_num = parent_inode.i_size_lo / BLOCK_SIZE;
-    int directory_size = BLOCK_SIZE/sizeof(Directory);
+    int block_num = parent_inode.i_size_lo / block_size;
+    int directory_size = block_size/sizeof(Directory);
     Directory *directory = new Directory[directory_size];
     
     for(int i=0; i<block_num; i++){
