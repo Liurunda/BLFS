@@ -136,3 +136,27 @@ int Disk::get_metadata_size(int group_id) {
     if (group_id == 0) return bg_inode_table + num_inode_table_blocks * block_size;
     else return bg_inode_table - group_id * block_group_size + num_inode_table_blocks * block_size;
 }
+
+void Disk::update_inode(int inode_id){
+    return;
+}
+
+void Disk::updata_data(int block_id, void *data){
+    return;
+}
+
+int Disk::acquire_unused_block(){
+    return 0;
+}
+
+int Disk::acquire_unused_inode(){
+    return 0;
+}
+
+void Disk::release_inode(int inode_id){
+    return;
+}
+
+void Disk::release_block(int block_id){
+    return;
+}

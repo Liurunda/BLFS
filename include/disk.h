@@ -45,6 +45,15 @@ public:
 
     int get_metadata_size(int group_id);
 
+    void update_inode(int inode_id);
+    void updata_data(int block_id, void *data);    
+    int acquire_unused_block();//空block编号
+    int acquire_unused_inode();
+    void release_inode(int inode_id);
+    void release_block(int block_id);
+
+
+
     static const ull BOOTBLOCK_OFFSET = 0;
     static const ull BOOTBLOCK_SIZE = 1024;
     static const ull SUPERBLOCK_OFFSET = 1024;
