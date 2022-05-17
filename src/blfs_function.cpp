@@ -5,6 +5,7 @@
 #include "blfs_functions.h"
 #include "disk.h"
 #include "superblock.h"
+#include "inode.h"
 #include <unistd.h>
 #include <assert.h>
 #include <stdio.h>
@@ -86,6 +87,29 @@ int blfunc_init() {
     return 0;
 }
 
+int find_inode_by_name(const char *name, Inode parent_inode) {
+    int block_size = Disk::get_instance()->block_size;
+    int block_num = parent_inode.i_size_lo / block_size;
+    assert(sizeof(DirectoryItem) == 256);
+    int directory_size = block_size / sizeof(DirectoryItem);
+    DirectoryItem *directoryItem = new DirectoryItem[directory_size];
+
+    for (int i = 0; i < block_num; i++) {
+        int block_id = parent_inode.get_kth_block_id(i);
+        assert(block_id > 0);
+        Disk::get_instance()->read_from_block(block_id, directoryItem);
+        for (int j = 0; j < directory_size; j++) {
+            if (strcmp(directoryItem[j].name, name) == 0) {
+                int child_inode_id = directoryItem[j].inode_id;
+                delete[] directoryItem;
+                return child_inode_id;
+            }
+        }
+    }
+    delete[] directoryItem;
+    return -1;
+}
+
 int find_inode_by_path(const char *path) {
     int path_length = strlen(path);
     if (path_length == 0) {
@@ -99,9 +123,13 @@ int find_inode_by_path(const char *path) {
     if (path_length == 1) {
         // root path
         return 0; // root inode id is always 0
+    } else {
+        // while(){
+
+        // }
     }
-    puts("Not Implemented");
-    return -1;
+    // puts("Not Implemented");
+    // return -1;
 }
 
 Inode get_inode_by_inode_id(int inode_id) {
