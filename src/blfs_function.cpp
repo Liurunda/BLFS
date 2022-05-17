@@ -124,15 +124,16 @@ int find_inode_by_path(const char *path) {
         // root path
         return 0; // root inode id is always 0
     } else {
+        // path may end with '/'
         // while(){
 
         // }
     }
-    // puts("Not Implemented");
-    // return -1;
+    puts("Not Implemented");
+    return -1;
 }
 
-Inode get_inode_by_inode_id(int inode_id) {
+Inode &get_inode_by_inode_id(int inode_id) {
     Superblock *superblock = Superblock::get_instance();
     int group_id = inode_id / superblock->s_inodes_per_group;
     int inode_id_in_group = inode_id % superblock->s_inodes_per_group;

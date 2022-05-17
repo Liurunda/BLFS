@@ -261,4 +261,5 @@ int Disk::read_block(int block_id, void *data) {
     int res = read(disk_fd, block_buf, block_size);
     if (res < 0) return res;
     else memcpy(data, block_buf, block_size);
+    return res;
 }
