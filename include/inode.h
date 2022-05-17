@@ -73,6 +73,14 @@
 
 #define EXT4_N_BLOCKS 15
 
+// 目录长度
+#define DIRECTORY_LENGTH 256
+
+struct Directory{
+    int inode_id;
+    char name[DIRECTORY_LENGTH-4];
+};
+
 
 class Inode {
 public:

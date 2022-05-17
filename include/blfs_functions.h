@@ -9,7 +9,7 @@
 
 int blfunc_init();
 
-int find_inode_by_path(const char *path);
+int find_inode_by_path(const char *path, Inode &inode);
 
 Inode get_inode_by_inode_id(int inode_id);
 

@@ -11,6 +11,7 @@
 #include "blfs_functions.h"
 
 
+
 static int blfs_getattr(const char *path, struct stat *buf, struct fuse_file_info *fi) {
     (void) fi;
     int inode_id = find_inode_by_path(path);
@@ -38,6 +39,7 @@ static int blfs_rename(const char *oldpath, const char *newpath, unsigned int fl
 
 static int blfs_open(const char *path, struct fuse_file_info *fi) {
     puts("blfs open");
+
     return 0;
 }
 

@@ -5,6 +5,7 @@
 #include "blfs_functions.h"
 #include "disk.h"
 #include "superblock.h"
+#include "inode.h"
 #include <unistd.h>
 #include <assert.h>
 #include <stdio.h>
@@ -86,7 +87,28 @@ int blfunc_init() {
     return 0;
 }
 
-int find_inode_by_path(const char *path) {
+int find_inode_by_name(const char *name, Inode parent_inode,Inode &child_inode){
+    int block_num = parent_inode.i_size_lo / BLOCK_SIZE;
+    int directory_size = BLOCK_SIZE/sizeof(Directory);
+    Directory *directory = new Directory[directory_size];
+    
+    for(int i=0; i<block_num; i++){
+        int block_id = parent_inode.i_block[i];
+        assert(sizeof(Dirctory)==256);        
+        read_from_block(block_id,directory);
+        for(int j=0; j<directory_size; j++){
+            if(strcmp(directory[j].name,name)==0){
+                child_inode = get_inode_by_inode_id(directory[j].inode_id);
+                delete[] directory;
+                return 0;
+            }
+        }        
+    }
+    delete[] directory;
+    return -1;
+}
+
+int find_inode_by_path(const char *path, Inode &inode) {
     int path_length = strlen(path);
     if (path_length == 0) {
         puts("Path length is zero");
@@ -98,10 +120,16 @@ int find_inode_by_path(const char *path) {
     }
     if (path_length == 1) {
         // root path
+        inode = get_inode_by_inode_id(0);        
         return 0; // root inode id is always 0
     }
-    puts("Not Implemented");
-    return -1;
+    else {        
+        // while(){
+
+        // }
+    }
+    // puts("Not Implemented");
+    // return -1;
 }
 
 Inode get_inode_by_inode_id(int inode_id) {

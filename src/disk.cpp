@@ -154,9 +154,14 @@ int Disk::acquire_unused_inode(){
 }
 
 void Disk::release_inode(int inode_id){
+    // 有问题
     return;
 }
 
 void Disk::release_block(int block_id){
+    return;
+}
+
+void Disk::read_from_block(int block_id,void *data){
     return;
 }

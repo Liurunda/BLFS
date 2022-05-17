@@ -52,6 +52,8 @@ public:
     void release_inode(int inode_id);
     void release_block(int block_id);
 
+    void read_from_block(int block_id,void *data);
+
 
 
     static const ull BOOTBLOCK_OFFSET = 0;
