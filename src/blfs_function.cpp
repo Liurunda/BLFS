@@ -79,28 +79,28 @@ int blfunc_init() {
             Disk::get_instance()->init_block_group(i, block_group_data);
         }
         free(block_group_data);
-if (!Superblock::get_instance()->validate_checksum()) {
-perror("Superblock checksum validation failed");
-return -1;
-}
-}
-return 0;
+        if (!Superblock::get_instance()->validate_checksum()) {
+            perror("Superblock checksum validation failed");
+            return -1;
+        }
+    }
+    return 0;
 }
 
 int find_inode_by_name(const char *name, Inode parent_inode) {
-int block_size = Disk::get_instance()->block_size;
-ull i_size = ((ull)parent_inode.i_size_high << 32) | (ull)parent_inode.i_size_lo;
-ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
-assert(sizeof(DirectoryItem) == 256);
-int directory_size = block_size / sizeof(DirectoryItem);
-DirectoryItem *directoryItem = new DirectoryItem[directory_size];
+    int block_size = Disk::get_instance()->block_size;
+    ull i_size = ((ull) parent_inode.i_size_high << 32) | (ull) parent_inode.i_size_lo;
+    ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
+    assert(sizeof(DirectoryItem) == 256);
+    int directory_size = block_size / sizeof(DirectoryItem);
+    DirectoryItem *directoryItem = new DirectoryItem[directory_size];
 
-for (int i = 0; i < block_num; i++) {
-int block_id = parent_inode.get_kth_block_id(i);
-assert(block_id > 0);
-Disk::get_instance()->read_from_block(block_id, directoryItem);
-for (int j = 0; j < directory_size; j++) {
-if (strcmp(directoryItem[j].name, name) == 0) {
+    for (int i = 0; i < block_num; i++) {
+        int block_id = parent_inode.get_kth_block_id(i);
+        assert(block_id > 0);
+        Disk::get_instance()->read_from_block(block_id, directoryItem);
+        for (int j = 0; j < directory_size; j++) {
+            if (strcmp(directoryItem[j].name, name) == 0) {
                 int child_inode_id = directoryItem[j].inode_id;
                 delete[] directoryItem;
                 return child_inode_id;
@@ -118,32 +118,32 @@ int find_inode_by_path(const char *path) {
         return -1;
     }
     if (path[0] != '/') {
-    printf("Path %s does not start with '/'\n", path);
-    return -1;
+        printf("Path %s does not start with '/'\n", path);
+        return -1;
     }
     if (path_length == 1) {
-    // root path
-    return 0; // root inode id is always 0
+        // root path
+        return 0; // root inode id is always 0
     } else {
-    // path may end with '/'
-    char *temp_path = new char[strlen(path)];
-    strcpy(temp_path, path);
-    char *name = strtok(temp_path, "/");
-int inode_id = 0;
-while (name != NULL) {
-inode_id = find_inode_by_name(name, get_inode_by_inode_id(inode_id));
-name = strtok(NULL, "/");
-if (inode_id == -1) {
-return -1;
-}
-}
-return inode_id;
-}
+        // path may end with '/'
+        char *temp_path = new char[strlen(path)];
+        strcpy(temp_path, path);
+        char *name = strtok(temp_path, "/");
+        int inode_id = 0;
+        while (name != NULL) {
+            inode_id = find_inode_by_name(name, get_inode_by_inode_id(inode_id));
+            name = strtok(NULL, "/");
+            if (inode_id == -1) {
+                return -1;
+            }
+        }
+        return inode_id;
+    }
 }
 
 Inode &get_inode_by_inode_id(int inode_id) {
-Superblock *superblock = Superblock::get_instance();
-int group_id = inode_id / superblock->s_inodes_per_group;
+    Superblock *superblock = Superblock::get_instance();
+    int group_id = inode_id / superblock->s_inodes_per_group;
     int inode_id_in_group = inode_id % superblock->s_inodes_per_group;
     return Disk::get_instance()->block_group[group_id].inode_table[inode_id_in_group];
 }

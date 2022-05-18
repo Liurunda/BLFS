@@ -20,28 +20,28 @@ static int blfs_getattr(const char *path, struct stat *buf, struct fuse_file_inf
     if (inode_id < 0) return -ENOENT;
     Inode inode = get_inode_by_inode_id(inode_id);
     buf->st_nlink = inode.i_links_count;
-buf->st_mode = inode.i_mode;
-buf->st_uid = inode.i_uid;
-buf->st_gid = inode.i_gid;
+    buf->st_mode = inode.i_mode;
+    buf->st_uid = inode.i_uid;
+    buf->st_gid = inode.i_gid;
 //buf->st_atim = inode.i_atime;
 
 
-puts("blfs getattr");
-return 0;
+    puts("blfs getattr");
+    return 0;
 }
 
 static int blfs_mknod(const char *path, mode_t mode, dev_t rdev) {
-puts("blfs mknod");
-return 0;
+    puts("blfs mknod");
+    return 0;
 }
 
 static int blfs_mkdir(const char *path, mode_t mode) {
-puts("blfs mkdir");
-return 0;
+    puts("blfs mkdir");
+    return 0;
 }
 
 static int blfs_unlink(const char *path) {
-return 0;
+    return 0;
 }
 
 static int blfs_rename(const char *oldpath, const char *newpath, unsigned int flags) {
@@ -93,24 +93,24 @@ static int blfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
     if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
     //if (filler(buf, ".", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
     if (inode_id != 0)
-    if (filler(buf, "..", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
+        if (filler(buf, "..", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
     ull dir_size = ((ull) inode.i_size_high << 32) | (ull) inode.i_size_lo;
     ull num_files = dir_size / sizeof(DirectoryItem);
     int block_size = Disk::get_instance()->block_size;
     int dir_last_block = dir_size / block_size;
-int dir_item_per_block = block_size / sizeof(DirectoryItem);
-DirectoryItem *items = new DirectoryItem[dir_item_per_block];
-for (int i = 0; i <= dir_last_block; i++) {
-Disk::get_instance()->read_from_block(inode.get_kth_block_id(i), items);
-if (i == dir_last_block - 1) {
-int num_file_offset = num_files % dir_item_per_block;
-for (int j = 0; j < num_file_offset; j++)
-if (filler(buf, items[j].name, nullptr, 0, FUSE_FILL_DIR_PLUS) != 0)
-return 1;
-} else {
-for (int j = 0; j < dir_item_per_block; j++)
-if (filler(buf, items[j].name, nullptr, 0, FUSE_FILL_DIR_PLUS) != 0)
-return 1;
+    int dir_item_per_block = block_size / sizeof(DirectoryItem);
+    DirectoryItem *items = new DirectoryItem[dir_item_per_block];
+    for (int i = 0; i <= dir_last_block; i++) {
+        Disk::get_instance()->read_from_block(inode.get_kth_block_id(i), items);
+        if (i == dir_last_block - 1) {
+            int num_file_offset = num_files % dir_item_per_block;
+            for (int j = 0; j < num_file_offset; j++)
+                if (filler(buf, items[j].name, nullptr, 0, FUSE_FILL_DIR_PLUS) != 0)
+                    return 1;
+        } else {
+            for (int j = 0; j < dir_item_per_block; j++)
+                if (filler(buf, items[j].name, nullptr, 0, FUSE_FILL_DIR_PLUS) != 0)
+                    return 1;
         }
     }
     puts("blfs readdir");
@@ -161,31 +161,31 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
         Disk::get_instance()->update_data(inode.get_kth_block_id(dir_last_block), items);
     }
     Inode &new_inode = get_inode_by_inode_id(new_inode_id);
-        new_inode.i_mode = (__le16) (mode & 0xFFFF);
-new_inode.i_links_count += 1;
-Disk::get_instance()->update_inode(new_inode_id);
-dir_size += sizeof(DirectoryItem);
-inode.i_size_high = (__le32) ((dir_size & 0xFFFFFFFF00000000) >> 32);
-inode.i_size_lo = (__le32) (dir_size & 0xFFFFFFFF);
-Disk::get_instance()->update_inode(inode_id);
-return 0;
+    new_inode.i_mode = (__le16) (mode & 0xFFFF);
+    new_inode.i_links_count += 1;
+    Disk::get_instance()->update_inode(new_inode_id);
+    dir_size += sizeof(DirectoryItem);
+    inode.i_size_high = (__le32) ((dir_size & 0xFFFFFFFF00000000) >> 32);
+    inode.i_size_lo = (__le32) (dir_size & 0xFFFFFFFF);
+    Disk::get_instance()->update_inode(inode_id);
+    return 0;
 }
 
 static int blfs_utimens(const char *path, const struct timespec tv[2], struct fuse_file_info *fi) {
-puts("blfs utimens");
-return 0;
+    puts("blfs utimens");
+    return 0;
 }
 
 static struct fuse_operations blfs_ops = {
-.getattr            = blfs_getattr,
-.readlink           = nullptr,
-.mknod              = blfs_mknod,
-.mkdir              = blfs_mkdir,
-.unlink             = blfs_unlink,
-.rmdir              = nullptr,
-.symlink            = nullptr,
-.rename             = blfs_rename,
-.link               = nullptr,
+        .getattr            = blfs_getattr,
+        .readlink           = nullptr,
+        .mknod              = blfs_mknod,
+        .mkdir              = blfs_mkdir,
+        .unlink             = blfs_unlink,
+        .rmdir              = nullptr,
+        .symlink            = nullptr,
+        .rename             = blfs_rename,
+        .link               = nullptr,
         .chmod              = nullptr,
         .chown              = nullptr,
         .truncate           = nullptr,
@@ -199,25 +199,25 @@ static struct fuse_operations blfs_ops = {
         .setxattr           = nullptr,
         .getxattr           = nullptr,
         .listxattr          = nullptr,
-.removexattr        = nullptr,
-.opendir            = blfs_opendir,
-.readdir            = blfs_readdir,
-.releasedir         = nullptr,
-.fsyncdir           = nullptr,
-.init               = blfs_init,
-.destroy            = nullptr,
-.access             = nullptr,
-.create             = blfs_create,
-.lock               = nullptr,
-.utimens            = blfs_utimens,
-.bmap               = nullptr,
-.ioctl              = nullptr,
-.poll               = nullptr,
-.write_buf          = nullptr,
-.read_buf           = nullptr,
-.flock              = nullptr,
-.fallocate          = nullptr,
-.copy_file_range    = nullptr
+        .removexattr        = nullptr,
+        .opendir            = blfs_opendir,
+        .readdir            = blfs_readdir,
+        .releasedir         = nullptr,
+        .fsyncdir           = nullptr,
+        .init               = blfs_init,
+        .destroy            = nullptr,
+        .access             = nullptr,
+        .create             = blfs_create,
+        .lock               = nullptr,
+        .utimens            = blfs_utimens,
+        .bmap               = nullptr,
+        .ioctl              = nullptr,
+        .poll               = nullptr,
+        .write_buf          = nullptr,
+        .read_buf           = nullptr,
+        .flock              = nullptr,
+        .fallocate          = nullptr,
+        .copy_file_range    = nullptr
 };
 
 int main(int argc, char *argv[]) {
