@@ -125,7 +125,7 @@ int find_inode_by_path(const char *path) {
         return 0; // root inode id is always 0
     } else {
         // path may end with '/'
-        char split = "/";
+        const char *split = "/";
         char *temp_path;
         strcpy(temp_path,path);
         char *name = strtok(temp_path,split);
