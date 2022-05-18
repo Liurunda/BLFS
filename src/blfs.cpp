@@ -131,7 +131,7 @@ static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct
     }
 
     memcpy(buf, bbuf+offset ,size);
-    delete[] buff;
+    delete[] bbuf;
     puts("blfs read");
     return size;    
 
@@ -169,7 +169,7 @@ static int blfs_write(const char *path, const char *buf, size_t size, off_t off,
     }
 
     while(to_write_size<size){
-        memcpy(bbuf, buf, to_write_size - already_write_size);
+        memcpy(bbuf, buf+already_write_size, to_write_size - already_write_size);
         Disk::get_instance()->write_block(inode.get_kth_block_id(block_id), bbuf);
         already_write_size = to_write_size;
         if(to_write_size + block_size > size){
@@ -179,7 +179,7 @@ static int blfs_write(const char *path, const char *buf, size_t size, off_t off,
             to_write_size += block_size;
         }
     }
-    
+    delete []bbuf;
     puts("blfs write");
     return size;
 }
