@@ -111,13 +111,77 @@ static int blfs_open(const char *path, struct fuse_file_info *fi) {
 }
 
 static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct fuse_file_info *fi) {
+    int inode_id = find_inode_by_path(path);
+    if (inode_id < 0) return -ENOENT;
+    Inode &inode = get_inode_by_inode_id(inode_id);
+    if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
+    
+    char *bbuf;
+
+    int block_size = Disk::get_instance()->block_size;
+    off_t offset = off;
+    int block_id = off / block_size;
+    offset = off % block_size;
+
+    int read_size = 0;
+    while(read_size < size+offset){
+        Disk::get_instance()->read_from_block(inode.get_kth_block_id(block_id), bbuf + read_size);
+        block_id++;
+        read_size = strlen(bbuf);
+    }
+
+    memcpy(buf, bbuf+offset ,size);
+    delete[] buff;
     puts("blfs read");
-    return 0;
+    return size;    
+
 }
 
 static int blfs_write(const char *path, const char *buf, size_t size, off_t off, struct fuse_file_info *fi) {
+    int inode_id = find_inode_by_path(path);
+    if (inode_id < 0) return -ENOENT;
+    Inode &inode = get_inode_by_inode_id(inode_id);
+    if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
+    
+    char *bbuf;
+
+    int block_size = Disk::get_instance()->block_size;
+    off_t offset = off;
+    int block_id = off / block_size;
+    offset = off % block_size;
+
+    int to_write_size = 0;
+    int already_write_size = 0;
+    if(block_size-offset>size)
+        to_write_size = size;
+    else
+        to_write_size = block_size-offset;
+
+    //第一部分，有offset时的写入
+    memcpy(bbuf+offset, buf, to_write_size - already_write_size);
+    Disk::get_instance()->write_block(inode.get_kth_block_id(block_id), bbuf);
+    already_write_size = to_write_size;
+    if(to_write_size + block_size > size){
+        to_write_size = size;            
+    }
+    else{
+        to_write_size += block_size;
+    }
+
+    while(to_write_size<size){
+        memcpy(bbuf, buf, to_write_size - already_write_size);
+        Disk::get_instance()->write_block(inode.get_kth_block_id(block_id), bbuf);
+        already_write_size = to_write_size;
+        if(to_write_size + block_size > size){
+            to_write_size = size;            
+        }
+        else{
+            to_write_size += block_size;
+        }
+    }
+    
     puts("blfs write");
-    return 0;
+    return size;
 }
 
 static int blfs_flush(const char *path, struct fuse_file_info *fi) {
