@@ -68,7 +68,8 @@ static int blfs_mkdir(const char *path, mode_t mode) {
     int new_inode_id = Disk::get_instance()->acquire_unused_inode();
     Inode& new_inode = get_inode_by_inode_id(new_inode_id);
     Inode& parent = get_inode_by_inode_id(parent_inode_id);
-    new_inode.i_mode = mode & 0xffff;
+    new_inode.i_mode = S_IXOTH | S_IROTH | S_IXGRP | S_IRGRP | S_IXUSR | S_IWUSR | S_IRUSR | S_IFDIR; //mode & 0xffff;
+    new_inode.i_links_count = 1;
     int block_size = Disk::get_instance()->block_size;
     ull i_size = ((ull) parent.i_size_high << 32) | (ull) parent.i_size_lo;
     ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
@@ -99,7 +100,6 @@ static int blfs_mkdir(const char *path, mode_t mode) {
     parent.i_size_lo = i_size &(0xffffffff);
     Disk::get_instance()->update_inode(parent_inode_id);//parent inode
     Disk::get_instance()->update_inode(new_inode_id);//parent inode
-    puts("mkdir success");
     delete[] modify_path;
     delete[] items;
     return 0;
