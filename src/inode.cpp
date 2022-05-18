@@ -3,6 +3,9 @@
 //
 
 #include "inode.h"
+#include "disk.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 Inode::Inode() {
     i_mode = 0;
@@ -35,6 +38,12 @@ Inode::Inode() {
     i_crtime_extra = 0;
     i_version_hi = 0;
     i_projid = 0;
+
+    num_block_id_per_block = Disk::get_instance()->block_size / sizeof(__le32);
+    block_threshold_1 = 12;
+    block_threshold_2 = block_threshold_1 + num_block_id_per_block;
+    block_threshold_3 = block_threshold_2 + num_block_id_per_block * num_block_id_per_block;
+    block_threshold_4 = block_threshold_3 + num_block_id_per_block * num_block_id_per_block * num_block_id_per_block;
 }
 
 Inode::~Inode() {
@@ -131,4 +140,58 @@ void Inode::traverse_settings_to_data(void *buf) {
     le32_to_u8(i_crtime_extra, 0x94);
     le32_to_u8(i_version_hi, 0x98);
     le32_to_u8(i_projid, 0x9C);
+}
+
+int Inode::get_kth_block_id(int k) {
+    if (k <= block_threshold_1) {
+        return i_block[k] == 0 ? -1 : i_block[k];
+    };
+    if (k <= block_threshold_2) {
+        Disk *disk = Disk::get_instance();
+        __le32 *block_1 = (__le32 *) malloc(disk->block_size);
+        disk->read_from_block(i_block[12], block_1);
+        int id = block_1[k - block_threshold_1];
+        free(block_1);
+        return id == 0 ? -1 : id;
+    }
+    if (k <= block_threshold_3) {
+        Disk *disk = Disk::get_instance();
+        __le32 *block_1 = (__le32 *) malloc(disk->block_size);
+        __le32 *block_2 = (__le32 *) malloc(disk->block_size);
+        int offset1 = (k - block_threshold_2) / num_block_id_per_block;
+        int offset2 = (k - block_threshold_2) % num_block_id_per_block;
+        disk->read_from_block(i_block[13], block_1);
+        disk->read_from_block(block_1[offset1], block_2);
+        int id = block_2[offset2];
+        free(block_1);
+        free(block_2);
+        return id == 0 ? -1 : id;
+    }
+    if (k <= block_threshold_4) {
+        Disk *disk = Disk::get_instance();
+        __le32 *block_1 = (__le32 *) malloc(disk->block_size);
+        __le32 *block_2 = (__le32 *) malloc(disk->block_size);
+        __le32 *block_3 = (__le32 *) malloc(disk->block_size);
+        int offset1 = (k - block_threshold_3) / num_block_id_per_block / num_block_id_per_block;
+        int offset2 = (k - block_threshold_3) / num_block_id_per_block % num_block_id_per_block;
+        int offset3 = (k - block_threshold_3) % num_block_id_per_block;
+        disk->read_from_block(i_block[14], block_1);
+        disk->read_from_block(block_1[offset1], block_2);
+        disk->read_from_block(block_2[offset2], block_3);
+        int id = block_3[offset3];
+        free(block_1);
+        free(block_2);
+        free(block_3);
+        return id == 0 ? -1 : id;
+    }
+    return -1; // block id too big
+}
+
+void Inode::add_block(int block_id) {
+    for (int i = 0; i < 12; i++)
+        if (i_block[i] == 0) {
+            i_block[i] = block_id;
+            return;
+        }
+    puts("Inode add block not implemented");
 }

@@ -5,6 +5,7 @@
 #include "blfs_functions.h"
 #include "disk.h"
 #include "superblock.h"
+#include "inode.h"
 #include <unistd.h>
 #include <assert.h>
 #include <stdio.h>
@@ -86,6 +87,30 @@ int blfunc_init() {
     return 0;
 }
 
+int find_inode_by_name(const char *name, Inode parent_inode) {
+    int block_size = Disk::get_instance()->block_size;
+    ull i_size = ((ull) parent_inode.i_size_high << 32) | (ull) parent_inode.i_size_lo;
+    ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
+    assert(sizeof(DirectoryItem) == 256);
+    int directory_size = block_size / sizeof(DirectoryItem);
+    DirectoryItem *directoryItem = new DirectoryItem[directory_size];
+
+    for (int i = 0; i < block_num; i++) {
+        int block_id = parent_inode.get_kth_block_id(i);
+        assert(block_id > 0);
+        Disk::get_instance()->read_from_block(block_id, directoryItem);
+        for (int j = 0; j < directory_size; j++) {
+            if (strcmp(directoryItem[j].name, name) == 0) {
+                int child_inode_id = directoryItem[j].inode_id;
+                delete[] directoryItem;
+                return child_inode_id;
+            }
+        }
+    }
+    delete[] directoryItem;
+    return -1;
+}
+
 int find_inode_by_path(const char *path) {
     int path_length = strlen(path);
     if (path_length == 0) {
@@ -99,12 +124,24 @@ int find_inode_by_path(const char *path) {
     if (path_length == 1) {
         // root path
         return 0; // root inode id is always 0
+    } else {
+        // path may end with '/'
+        char *temp_path = new char[strlen(path)];
+        strcpy(temp_path, path);
+        char *name = strtok(temp_path, "/");
+        int inode_id = 0;
+        while (name != NULL) {
+            inode_id = find_inode_by_name(name, get_inode_by_inode_id(inode_id));
+            name = strtok(NULL, "/");
+            if (inode_id == -1) {
+                return -1;
+            }
+        }
+        return inode_id;
     }
-    puts("Not Implemented");
-    return -1;
 }
 
-Inode get_inode_by_inode_id(int inode_id) {
+Inode &get_inode_by_inode_id(int inode_id) {
     Superblock *superblock = Superblock::get_instance();
     int group_id = inode_id / superblock->s_inodes_per_group;
     int inode_id_in_group = inode_id % superblock->s_inodes_per_group;
@@ -147,32 +184,15 @@ int create_inode(const char *path, int flags) {
     // should be locked when multi-thread
     Disk *disk = Disk::get_instance();
     Superblock *superblock = Superblock::get_instance();
-    bool found = false;
-    int inode = -1;
-    int group_id = 0, inode_id = 0;
-    for (group_id = 0; group_id < disk->num_block_group; group_id++) {
-        for (inode_id = 0; inode_id < superblock->s_inodes_per_group; inode_id++) {
-            if (!disk->block_group[group_id].inode_bitmap[inode_id]) {
-                found = true;
-                inode = group_id * superblock->s_inodes_per_group + inode_id;
-                break;
-            }
-        }
-        if (found) break;
-    }
+    int inode = disk->acquire_unused_inode();
+    int group_id = inode / superblock->s_inodes_per_group;
     if (parent_inode == -1) {
         // create root directory
         assert(inode == 0);
-        disk->block_group[0].inode_bitmap[0] = true;
-        Inode &current_inode = disk->block_group[0].inode_table[0];
+        Inode &current_inode = disk->block_group[0].inode_table[inode];
         // use standard flags: drwxr-xr-x
         current_inode.i_mode = S_IXOTH | S_IROTH | S_IXGRP | S_IRGRP | S_IXUSR | S_IWUSR | S_IRUSR | S_IFDIR;
-        for (int block_id = 0; block_id < superblock->s_blocks_per_group; block_id++) {
-            if (!disk->block_group[group_id].block_bitmap[block_id]) {
-                current_inode.i_block[0] = block_id;
-                break;
-            }
-        }
+        disk->update_inode(inode);
     } else {
         puts("Not Implemented");
         return -1;

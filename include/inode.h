@@ -73,6 +73,14 @@
 
 #define EXT4_N_BLOCKS 15
 
+// 目录长度
+#define DIRECTORY_LENGTH 256
+
+struct DirectoryItem {
+    int inode_id;
+    char name[DIRECTORY_LENGTH - 4];
+};
+
 
 class Inode {
 public:
@@ -83,6 +91,10 @@ public:
     void traverse_data_to_settings(void *);
 
     void traverse_settings_to_data(void *);
+
+    int get_kth_block_id(int k);
+
+    void add_block(int block_id);
 
     static const int INODE_SIZE = 0x100;
 
@@ -122,6 +134,13 @@ public:
     __le32 i_crtime_extra;                  // Extra file creation time bits. This provides sub-second precision.
     __le32 i_version_hi;                    // Upper 32-bits for version number.
     __le32 i_projid;                        // Project ID.
+
+private:
+    __u32 num_block_id_per_block;
+    unsigned long long block_threshold_1;
+    unsigned long long block_threshold_2;
+    unsigned long long block_threshold_3;
+    unsigned long long block_threshold_4;
 };
 
 #endif //BLFS_INODE_H

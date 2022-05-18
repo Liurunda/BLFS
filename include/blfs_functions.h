@@ -9,9 +9,11 @@
 
 int blfunc_init();
 
+int find_inode_by_name(const char *name, Inode parent_inode);
+
 int find_inode_by_path(const char *path);
 
-Inode get_inode_by_inode_id(int inode_id);
+Inode &get_inode_by_inode_id(int inode_id);
 
 int create_inode(const char *path, int flags);
 

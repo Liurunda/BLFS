@@ -45,6 +45,21 @@ public:
 
     int get_metadata_size(int group_id);
 
+    void update_inode(int inode_id);
+
+    void update_data(int block_id, void *data);
+
+    void update_null_data(int block_id);
+
+    int acquire_unused_block(); //空block编号
+
+    int acquire_unused_inode();
+
+    void release_block(int block_id);
+
+    void read_from_block(int block_id, void *data);
+
+
     static const ull BOOTBLOCK_OFFSET = 0;
     static const ull BOOTBLOCK_SIZE = 1024;
     static const ull SUPERBLOCK_OFFSET = 1024;
@@ -53,6 +68,7 @@ public:
 
     BlockGroup *block_group;
     int num_block_group;
+    ull block_size;
     ull block_group_size;
 private:
     static Disk *disk_instance;
@@ -60,6 +76,14 @@ private:
     Disk();
 
     ~Disk();
+
+    int write_block(int block_id, void *data);
+
+    int read_block(int block_id, void *data);
+
+    void *block_buf;
+    void *empty_buf;
+    void *buf; // pre-allocated enough space to serialize metadata
 };
 
 #endif //BLFS_DISK_H
