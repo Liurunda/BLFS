@@ -179,7 +179,7 @@ static int blfs_write(const char *path, const char *buf, size_t size, off_t off,
 
     while(to_write_size<size){
         memcpy(bbuf, buf+already_write_size, to_write_size - already_write_size);
-        Disk::get_instance()->write_block(inode.get_kth_block_id(block_id), bbuf);
+        Disk::get_instance()->update_data(inode.get_kth_block_id(block_id), bbuf);
         already_write_size = to_write_size;
         if(to_write_size + block_size > size){
             to_write_size = size;            
