@@ -23,10 +23,15 @@ static int blfs_getattr(const char *path, struct stat *buf, struct fuse_file_inf
     buf->st_mode = inode.i_mode;
     buf->st_uid = inode.i_uid;
     buf->st_gid = inode.i_gid;
-    //buf->st_atim = inode.i_atime;
+//buf->st_atim = inode.i_atime;
 
 
     puts("blfs getattr");
+    return 0;
+}
+
+static int blfs_mknod(const char *path, mode_t mode, dev_t rdev) {
+    puts("blfs mknod");
     return 0;
 }
 
@@ -108,7 +113,7 @@ static int blfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
     if (inode_id < 0) return -ENOENT;
     Inode &inode = get_inode_by_inode_id(inode_id);
     if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
-    if (filler(buf, ".", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
+    //if (filler(buf, ".", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
     if (inode_id != 0)
         if (filler(buf, "..", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
     ull dir_size = ((ull) inode.i_size_high << 32) | (ull) inode.i_size_lo;
@@ -117,7 +122,7 @@ static int blfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
     int dir_last_block = dir_size / block_size;
     int dir_item_per_block = block_size / sizeof(DirectoryItem);
     DirectoryItem *items = new DirectoryItem[dir_item_per_block];
-    for (int i = 0; i < dir_last_block; i++) {
+    for (int i = 0; i <= dir_last_block; i++) {
         Disk::get_instance()->read_from_block(inode.get_kth_block_id(i), items);
         if (i == dir_last_block - 1) {
             int num_file_offset = num_files % dir_item_per_block;
@@ -179,6 +184,7 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     }
     Inode &new_inode = get_inode_by_inode_id(new_inode_id);
     new_inode.i_mode = (__le16) (mode & 0xFFFF);
+    new_inode.i_links_count += 1;
     Disk::get_instance()->update_inode(new_inode_id);
     dir_size += sizeof(DirectoryItem);
     inode.i_size_high = (__le32) ((dir_size & 0xFFFFFFFF00000000) >> 32);
@@ -187,12 +193,17 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     return 0;
 }
 
+static int blfs_utimens(const char *path, const struct timespec tv[2], struct fuse_file_info *fi) {
+    puts("blfs utimens");
+    return 0;
+}
+
 static struct fuse_operations blfs_ops = {
         .getattr            = blfs_getattr,
         .readlink           = nullptr,
-        .mknod              = nullptr,
+        .mknod              = blfs_mknod,
         .mkdir              = blfs_mkdir,
-        .unlink             = nullptr,
+        .unlink             = blfs_unlink,
         .rmdir              = nullptr,
         .symlink            = nullptr,
         .rename             = blfs_rename,
@@ -220,7 +231,7 @@ static struct fuse_operations blfs_ops = {
         .access             = nullptr,
         .create             = blfs_create,
         .lock               = nullptr,
-        .utimens            = nullptr,
+        .utimens            = blfs_utimens,
         .bmap               = nullptr,
         .ioctl              = nullptr,
         .poll               = nullptr,

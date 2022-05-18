@@ -89,7 +89,8 @@ int blfunc_init() {
 
 int find_inode_by_name(const char *name, Inode parent_inode) {
     int block_size = Disk::get_instance()->block_size;
-    int block_num = parent_inode.i_size_lo / block_size;
+    ull i_size = ((ull) parent_inode.i_size_high << 32) | (ull) parent_inode.i_size_lo;
+    ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
     assert(sizeof(DirectoryItem) == 256);
     int directory_size = block_size / sizeof(DirectoryItem);
     DirectoryItem *directoryItem = new DirectoryItem[directory_size];
@@ -125,12 +126,19 @@ int find_inode_by_path(const char *path) {
         return 0; // root inode id is always 0
     } else {
         // path may end with '/'
-        // while(){
-
-        // }
+        char *temp_path = new char[strlen(path)];
+        strcpy(temp_path, path);
+        char *name = strtok(temp_path, "/");
+        int inode_id = 0;
+        while (name != NULL) {
+            inode_id = find_inode_by_name(name, get_inode_by_inode_id(inode_id));
+            name = strtok(NULL, "/");
+            if (inode_id == -1) {
+                return -1;
+            }
+        }
+        return inode_id;
     }
-    puts("Not Implemented");
-    return -1;
 }
 
 Inode &get_inode_by_inode_id(int inode_id) {
