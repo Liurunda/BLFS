@@ -78,7 +78,7 @@ static int blfs_mkdir(const char *path, mode_t mode) {
         delete[] modify_path;
         return -ENOENT;
     }
-    new_inode->i_mode = S_IXOTH | S_IROTH | S_IXGRP | S_IRGRP | S_IXUSR | S_IWUSR | S_IRUSR | S_IFDIR; //mode & 0xffff;
+    new_inode->i_mode = (__le16) (mode & 0xFFFF) | S_IFDIR;
     new_inode->i_links_count = 1;
     int block_size = Disk::get_instance()->block_size;
     ull i_size = ((ull) parent->i_size_high << 32) | (ull) parent->i_size_lo;
@@ -240,7 +240,7 @@ static int blfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
     Inode *inode = get_inode_by_inode_id(inode_id);
     if (inode == nullptr) return -ENOENT;
     if (!(inode->i_mode & S_IFDIR)) return -ENXIO;
-    //if (filler(buf, ".", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
+    if (filler(buf, ".", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
     if (inode_id != 0)
         if (filler(buf, "..", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
     ull dir_size = ((ull) inode->i_size_high << 32) | (ull) inode->i_size_lo;
