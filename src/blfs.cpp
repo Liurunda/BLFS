@@ -51,14 +51,47 @@ static int blfs_mkdir(const char *path, mode_t mode) {
     
     int findr = strrchr(modify_path,'/') - modify_path;
     modify_path[findr] = '\0';
-    inode_id = find_inode_by_path(modify_path);//parent inode
-    if(inode_id == -1){
+    int parent_inode_id = find_inode_by_path(modify_path);//parent inode
+    if(parent_inode_id == -1){
         delete[] modify_path;
         return -1;
     }
     //we got the parent's directory now
-    
+    int new_inode_id = Disk::get_instance()->acquire_unused_inode();
+    Inode& new_inode = get_inode_by_inode_id(new_inode_id);
+    Inode& parent = get_inode_by_inode_id(parent_inode_id);
+    int block_size = Disk::get_instance()->block_size;
+    ull i_size = ((ull) parent.i_size_high << 32) | (ull) parent.i_size_lo;
+    ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
+
+    //need a new block?
+    if(i_size % block_size == 0){//full
+        //give it a new block
+        int new_block_id = Disk::get_instance()->acquire_unused_block();
+        parent.add_block(new_block_id);
+        block_num += 1;
+    }
+    int last_block = parent.get_kth_block_id(block_num);
+    //modify parent inode block
+    int offset = (i_size%block_size) * sizeof(DirectoryItem);
+    DirectoryItem* items = new DirectoryItem[block_size / sizeof(DirectoryItem)];
+    Disk::get_instance()->read_from_block(last_block,(void*)items);
+    items[offset].inode_id = new_inode_id;
+    if(len-findr-1>DIRECTORY_LENGTH-4){//too long
+        delete[] modify_path;
+        delete[] items;
+        return -1;
+    }
+    strcpy(items[offset].name, modify_path+findr+1);
+    Disk::get_instance()->update_data(last_block,(void*)items);
+    //update i_size
+    i_size += sizeof(DirectoryItem);
+    parent.i_size_high = i_size >> 32;
+    parent.i_size_lo = i_size &(0xffffffff);
+    Disk::get_instance()->update_inode(parent_inode_id);//parent inode
+    Disk::get_instance()->update_inode(new_inode_id);//parent inode
     delete[] modify_path;
+    delete[] items;
     return 0;
 }
 
