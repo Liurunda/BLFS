@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
+#include <errno.h>
 
 int blfunc_init() {
     Superblock *superblock = Superblock::get_instance();
@@ -91,15 +92,17 @@ int find_inode_by_name(const char *name, Inode parent_inode) {
     int block_size = Disk::get_instance()->block_size;
     ull i_size = ((ull) parent_inode.i_size_high << 32) | (ull) parent_inode.i_size_lo;
     ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
-    assert(sizeof(DirectoryItem) == 256);
-    int directory_size = block_size / sizeof(DirectoryItem);
+    int directory_size = block_size / DIRECTORY_LENGTH;
     DirectoryItem *directoryItem = new DirectoryItem[directory_size];
 
     for (int i = 0; i < block_num; i++) {
         int block_id = parent_inode.get_kth_block_id(i);
         assert(block_id > 0);
         Disk::get_instance()->read_from_block(block_id, directoryItem);
-        for (int j = 0; j < directory_size; j++) {
+        int num_items_in_current_block =
+                i == block_num - 1 ? ((i_size - 1) % Disk::get_instance()->block_size + 1) / DIRECTORY_LENGTH
+                                   : directory_size;
+        for (int j = 0; j < num_items_in_current_block; j++) {
             if (strcmp(directoryItem[j].name, name) == 0) {
                 int child_inode_id = directoryItem[j].inode_id;
                 delete[] directoryItem;
@@ -192,6 +195,7 @@ int create_inode(const char *path, int flags) {
         Inode &current_inode = disk->block_group[0].inode_table[inode];
         // use standard flags: drwxr-xr-x
         current_inode.i_mode = S_IXOTH | S_IROTH | S_IXGRP | S_IRGRP | S_IXUSR | S_IWUSR | S_IRUSR | S_IFDIR;
+        current_inode.i_links_count += 1;
         disk->update_inode(inode);
     } else {
         puts("Not Implemented");
@@ -207,4 +211,81 @@ inline int write_disk(int fd, long offset, void *buf, int size) {
         return -1;
     }
     return 0;
+}
+
+int remove_file_from_dir(const char *file_name) {
+    assert(strlen(file_name) > 1);
+    char *temp_path = new char[strlen(file_name)];
+    strcpy(temp_path, file_name);
+    char *name = nullptr;
+    int last_inode_id = 0;
+    int inode_id = 0;
+    while (true) {
+        if (inode_id == 0) name = strtok(temp_path, "/");
+        else name = strtok(NULL, "/");
+        if (name == nullptr) break;
+        last_inode_id = inode_id;
+        inode_id = find_inode_by_name(name, get_inode_by_inode_id(last_inode_id));
+        if (inode_id == -1) return -ENOENT;
+    }
+    // last_inode_id is directory inode, and inode_id is file inode
+    // now find inode_id in the directory
+
+    Inode &dir_inode = get_inode_by_inode_id(last_inode_id);
+
+    int block_size = Disk::get_instance()->block_size;
+    ull i_size = ((ull) dir_inode.i_size_high << 32) | (ull) dir_inode.i_size_lo;
+    ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
+    int directory_size = block_size / DIRECTORY_LENGTH;
+    DirectoryItem *directoryItem = new DirectoryItem[directory_size];
+
+    for (int i = 0; i < block_num; i++) {
+        int block_id = dir_inode.get_kth_block_id(i);
+        assert(block_id > 0);
+        Disk::get_instance()->read_from_block(block_id, directoryItem);
+        int num_items_in_current_block =
+                i == block_num - 1 ? ((i_size - 1) % Disk::get_instance()->block_size + 1) / DIRECTORY_LENGTH
+                                   : directory_size;
+        for (int j = 0; j < num_items_in_current_block; j++) {
+            if (directoryItem[j].inode_id == inode_id) {
+                // remove this item
+                if (i == block_num - 1) {
+                    int num_items_in_last_block =
+                            ((i_size - 1) % Disk::get_instance()->block_size + 1) / DIRECTORY_LENGTH;
+                    if (j != num_items_in_last_block - 1) {
+                        // swap two items
+                        directoryItem[j].inode_id = directoryItem[num_items_in_last_block - 1].inode_id;
+                        memcpy(directoryItem[j].name, directoryItem[num_items_in_last_block - 1].name,
+                               DIRECTORY_LENGTH - 4);
+                    }
+                    i_size -= DIRECTORY_LENGTH;
+                    dir_inode.i_size_high = (__le32) ((i_size & 0xFFFFFFFF00000000) >> 32);
+                    dir_inode.i_size_lo = (__le32) (i_size & 0xFFFFFFFF);
+                    if (num_items_in_last_block == 1) Disk::get_instance()->release_block(block_id);
+                    else Disk::get_instance()->update_data(block_id, directoryItem);
+                    Disk::get_instance()->update_inode(last_inode_id);
+                } else {
+                    // read last block
+                    DirectoryItem *lastItems = new DirectoryItem[directory_size];
+                    int last_block_id = dir_inode.get_kth_block_id(block_num - 1);
+                    Disk::get_instance()->read_from_block(last_block_id, lastItems);
+                    int num_items_in_last_block =
+                            ((i_size - 1) % Disk::get_instance()->block_size + 1) / DIRECTORY_LENGTH;
+                    // swap two items
+                    directoryItem[j].inode_id = lastItems[num_items_in_last_block - 1].inode_id;
+                    memcpy(directoryItem[j].name, lastItems[num_items_in_last_block - 1].name, DIRECTORY_LENGTH - 4);
+                    i_size -= DIRECTORY_LENGTH;
+                    dir_inode.i_size_high = (__le32) ((i_size & 0xFFFFFFFF00000000) >> 32);
+                    dir_inode.i_size_lo = (__le32) (i_size & 0xFFFFFFFF);
+                    Disk::get_instance()->update_data(block_id, directoryItem);
+                    Disk::get_instance()->update_inode(last_inode_id);
+                    delete[] lastItems;
+                }
+                delete[] directoryItem;
+                return 0;
+            }
+        }
+    }
+    delete[] directoryItem;
+    return -ENOENT;
 }
