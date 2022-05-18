@@ -38,6 +38,70 @@ static int blfs_mknod(const char *path, mode_t mode, dev_t rdev) {
 
 static int blfs_mkdir(const char *path, mode_t mode) {
     puts("blfs mkdir");
+    // find last inode of the path
+    int inode_id = find_inode_by_path(path);
+    if(inode_id!=-1){
+        puts("mkdir error: already exists");
+        return -1;//the path already exists
+    }
+
+    int len = strlen(path);
+    char* modify_path = new char[len+1];
+    strcpy(modify_path, path);
+
+    if(modify_path[len-1]=='/')modify_path[len-1] = '\0';
+    
+    int findr = strrchr(modify_path,'/') - modify_path;
+    int parent_inode_id;
+    if(findr!=0){
+        modify_path[findr] = '\0';
+        parent_inode_id = find_inode_by_path(modify_path);//parent inode
+    }else{
+        parent_inode_id = find_inode_by_path("/");
+    }
+    if(parent_inode_id == -1){
+        puts("mkdir error: cannot find parent");
+        delete[] modify_path;
+        return -1;
+    }
+    //we got the parent's directory now
+    int new_inode_id = Disk::get_instance()->acquire_unused_inode();
+    Inode& new_inode = get_inode_by_inode_id(new_inode_id);
+    Inode& parent = get_inode_by_inode_id(parent_inode_id);
+    new_inode.i_mode = S_IXOTH | S_IROTH | S_IXGRP | S_IRGRP | S_IXUSR | S_IWUSR | S_IRUSR | S_IFDIR;
+    int block_size = Disk::get_instance()->block_size;
+    ull i_size = ((ull) parent.i_size_high << 32) | (ull) parent.i_size_lo;
+    ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
+
+    //need a new block?
+    if(i_size % block_size == 0){//full
+        int new_block_id = Disk::get_instance()->acquire_unused_block();
+        parent.add_block(new_block_id);
+        block_num += 1;
+    }
+    int last_block = parent.get_kth_block_id(block_num-1);
+    //modify parent inode block    
+    int offset = (i_size%block_size) * sizeof(DirectoryItem);
+    DirectoryItem* items = new DirectoryItem[block_size / sizeof(DirectoryItem)];
+    Disk::get_instance()->read_from_block(last_block,(void*)items);
+    items[offset].inode_id = new_inode_id;
+    if(len-findr-1>DIRECTORY_LENGTH-4){//too long
+        puts("Mkdir error: name too long");
+        delete[] modify_path;
+        delete[] items;
+        return -1;
+    }
+    strcpy(items[offset].name, modify_path+findr+1);
+    Disk::get_instance()->update_data(last_block,(void*)items);
+    //update i_size
+    i_size += sizeof(DirectoryItem);
+    parent.i_size_high = i_size >> 32;
+    parent.i_size_lo = i_size &(0xffffffff);
+    Disk::get_instance()->update_inode(parent_inode_id);//parent inode
+    Disk::get_instance()->update_inode(new_inode_id);//parent inode
+    puts("mkdir success");
+    delete[] modify_path;
+    delete[] items;
     return 0;
 }
 
@@ -63,13 +127,77 @@ static int blfs_open(const char *path, struct fuse_file_info *fi) {
 }
 
 static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct fuse_file_info *fi) {
+    int inode_id = find_inode_by_path(path);
+    if (inode_id < 0) return -ENOENT;
+    Inode &inode = get_inode_by_inode_id(inode_id);
+    if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
+    
+    char *bbuf;
+
+    int block_size = Disk::get_instance()->block_size;
+    off_t offset = off;
+    int block_id = off / block_size;
+    offset = off % block_size;
+
+    int read_size = 0;
+    while(read_size < size+offset){
+        Disk::get_instance()->read_from_block(inode.get_kth_block_id(block_id), bbuf + read_size);
+        block_id++;
+        read_size = strlen(bbuf);
+    }
+
+    memcpy(buf, bbuf+offset ,size);
+    delete[] bbuf;
     puts("blfs read");
-    return 0;
+    return size;    
+
 }
 
 static int blfs_write(const char *path, const char *buf, size_t size, off_t off, struct fuse_file_info *fi) {
+    int inode_id = find_inode_by_path(path);
+    if (inode_id < 0) return -ENOENT;
+    Inode &inode = get_inode_by_inode_id(inode_id);
+    if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
+    
+    char *bbuf;
+
+    int block_size = Disk::get_instance()->block_size;
+    off_t offset = off;
+    int block_id = off / block_size;
+    offset = off % block_size;
+
+    int to_write_size = 0;
+    int already_write_size = 0;
+    if(block_size-offset>size)
+        to_write_size = size;
+    else
+        to_write_size = block_size-offset;
+
+    //第一部分，有offset时的写入
+    memcpy(bbuf+offset, buf, to_write_size - already_write_size);
+    Disk::get_instance()->update_data(inode.get_kth_block_id(block_id), bbuf);
+    already_write_size = to_write_size;
+    if(to_write_size + block_size > size){
+        to_write_size = size;            
+    }
+    else{
+        to_write_size += block_size;
+    }
+
+    while(to_write_size<size){
+        memcpy(bbuf, buf+already_write_size, to_write_size - already_write_size);
+        Disk::get_instance()->update_data(inode.get_kth_block_id(block_id), bbuf);
+        already_write_size = to_write_size;
+        if(to_write_size + block_size > size){
+            to_write_size = size;            
+        }
+        else{
+            to_write_size += block_size;
+        }
+    }
+    delete []bbuf;
     puts("blfs write");
-    return 0;
+    return size;
 }
 
 static int blfs_flush(const char *path, struct fuse_file_info *fi) {
@@ -185,6 +313,11 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 
 static int blfs_utimens(const char *path, const struct timespec tv[2], struct fuse_file_info *fi) {
     puts("blfs utimens");
+    return 0;
+}
+
+static int blfs_access(const char* path, int mode){
+    puts("blfs access");
     return 0;
 }
 
