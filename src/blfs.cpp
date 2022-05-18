@@ -32,6 +32,28 @@ static int blfs_getattr(const char *path, struct stat *buf, struct fuse_file_inf
 
 static int blfs_mkdir(const char *path, mode_t mode) {
     puts("blfs mkdir");
+    // find last inode of the path
+    int inode_id = find_inode_by_path(path);
+    if(inode_id!=-1){
+        return -1;//the path already exists
+    }
+
+    int len = strlen(path);
+    char* modify_path = new char[len+1];
+    strcpy(modify_path, path);
+
+    if(modify_path[len-1]=='/')modify_path[len-1] = '\0';
+    
+    int findr = strrchr(modify_path,'/') - modify_path;
+    modify_path[findr] = '\0';
+    inode_id = find_inode_by_path(modify_path);//parent inode
+    if(inode_id == -1){
+        delete[] modify_path;
+        return -1;
+    }
+    //we got the parent's directory now
+    
+    delete[] modify_path;
     return 0;
 }
 
