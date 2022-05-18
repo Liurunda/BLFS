@@ -125,7 +125,7 @@ static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct
     Inode &inode = get_inode_by_inode_id(inode_id);
     if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
     
-    char *bbuf;
+    char *bbuf = malloc(size);
 
     int block_size = Disk::get_instance()->block_size;
     off_t offset = off;
@@ -152,7 +152,7 @@ static int blfs_write(const char *path, const char *buf, size_t size, off_t off,
     Inode &inode = get_inode_by_inode_id(inode_id);
     if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
     
-    char *bbuf;
+    char *bbuf = malloc(size);
 
     int block_size = Disk::get_instance()->block_size;
     off_t offset = off;
