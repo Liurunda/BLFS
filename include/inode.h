@@ -96,6 +96,10 @@ public:
 
     void add_block(int block_id);
 
+    unsigned long long get_size() {
+        return ((unsigned long long) i_size_high << 32) | (unsigned long long) i_size_lo;
+    }
+
     static const int INODE_SIZE = 0x100;
 
     __le16 i_mode;                          // File mode.

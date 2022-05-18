@@ -94,34 +94,34 @@ void Disk::create_block_groups() {
             for (int i = 0; i < num_block_group; i++) block_group[group_id].gdt[i].create_default_settings(i);
         }
         GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
-    block_group[group_id].block_bitmap_offset = ((unsigned long long) current_gdt.bg_block_bitmap_hi << 32) |
-    (unsigned long long) current_gdt.bg_block_bitmap_lo;
-    block_group[group_id].inode_bitmap_offset = ((unsigned long long) current_gdt.bg_inode_bitmap_hi << 32) |
-    (unsigned long long) current_gdt.bg_inode_bitmap_lo;
-block_group[group_id].inode_table_offset = ((unsigned long long) current_gdt.bg_inode_table_hi << 32) |
-(unsigned long long) current_gdt.bg_inode_table_lo;
-Superblock *superblock = Superblock::get_instance();
-block_group[group_id].block_bitmap = new bool[superblock->s_blocks_per_group];
-for (int i = 0; i < superblock->s_blocks_per_group; i++) block_group[group_id].block_bitmap[i] = false;
+        block_group[group_id].block_bitmap_offset = ((unsigned long long) current_gdt.bg_block_bitmap_hi << 32) |
+                                                    (unsigned long long) current_gdt.bg_block_bitmap_lo;
+        block_group[group_id].inode_bitmap_offset = ((unsigned long long) current_gdt.bg_inode_bitmap_hi << 32) |
+                                                    (unsigned long long) current_gdt.bg_inode_bitmap_lo;
+        block_group[group_id].inode_table_offset = ((unsigned long long) current_gdt.bg_inode_table_hi << 32) |
+                                                   (unsigned long long) current_gdt.bg_inode_table_lo;
+        Superblock *superblock = Superblock::get_instance();
+        block_group[group_id].block_bitmap = new bool[superblock->s_blocks_per_group];
+        for (int i = 0; i < superblock->s_blocks_per_group; i++) block_group[group_id].block_bitmap[i] = false;
 // set bitmap whose block used by metadata to true
-ull bytes_used = block_group[group_id].inode_table_offset + Inode::INODE_SIZE * superblock->s_inodes_per_group -
-group_id * block_group_size;
-int block_used = (bytes_used - 1) / block_size + 1;
-for (int i = 0; i < block_used; i++) block_group[group_id].block_bitmap[i] = true;
-block_group[group_id].inode_bitmap = new bool[superblock->s_inodes_per_group];
-for (int i = 0; i < superblock->s_inodes_per_group; i++) block_group[group_id].inode_bitmap[i] = false;
-block_group[group_id].inode_table = new Inode[superblock->s_inodes_per_group];
-}
+        ull bytes_used = block_group[group_id].inode_table_offset + Inode::INODE_SIZE * superblock->s_inodes_per_group -
+                         group_id * block_group_size;
+        int block_used = (bytes_used - 1) / block_size + 1;
+        for (int i = 0; i < block_used; i++) block_group[group_id].block_bitmap[i] = true;
+        block_group[group_id].inode_bitmap = new bool[superblock->s_inodes_per_group];
+        for (int i = 0; i < superblock->s_inodes_per_group; i++) block_group[group_id].inode_bitmap[i] = false;
+        block_group[group_id].inode_table = new Inode[superblock->s_inodes_per_group];
+    }
 
-char root_path[2] = {
-'/', '\0'
-};
-create_inode(root_path, 0);
+    char root_path[2] = {
+            '/', '\0'
+    };
+    create_inode(root_path, 0);
 }
 
 int Disk::traverse_block_metadata_to_data(int group_id, void *data_buf) {
-__u8 *u8_buf = reinterpret_cast<__u8 *>(data_buf);
-const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
+    __u8 *u8_buf = reinterpret_cast<__u8 *>(data_buf);
+    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
     if (group_id == 0) {
         Superblock::get_instance()->traverse_settings_to_data(u8_buf + BlockGroup::SUPERBLOCK_OFFSET);
         for (int i = 0; i < num_block_group; i++)
@@ -153,21 +153,32 @@ int Disk::get_metadata_size(int group_id) {
 
 void Disk::update_inode(int inode_id) {
     int group_id = inode_id / Superblock::get_instance()->s_blocks_per_group;
-    int i = inode_id % Superblock::get_instance()->s_blocks_per_group;
-    // found and write changed block
-    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
-    ull bg_inode_bitmap = ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;
-    int bitmap_block_id = (bg_inode_bitmap + (ull) i) / block_size;
-    block_group[group_id].traverse_inode_bitmap_to_data(buf);
-    int block_offset = i / block_size;
-    if (write_block(bitmap_block_id, reinterpret_cast<__u8 *>(buf) + block_offset * block_size) < 0) {
-        perror("Error when write block bitmap into disk");
+    int inode_offset = inode_id % Superblock::get_instance()->s_blocks_per_group;
+    Inode &inode = Disk::get_instance()->block_group[group_id].inode_table[inode_offset];
+    if (inode.i_links_count == 0) {
+        // remove inode
+        // remove blocks first
+        ull i_size = inode.get_size();
+        ull num_blocks = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
+        for (int j = 0; j < num_blocks; j++) release_block(inode.get_kth_block_id(j));
+        // release inode
+        const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
+        ull bg_inode_bitmap = ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;
+        int bitmap_block_id = (bg_inode_bitmap + (ull) inode_offset) / block_size;
+        block_group[group_id].inode_bitmap[inode_offset] = false;
+        block_group[group_id].traverse_inode_bitmap_to_data(buf);
+        int block_offset = inode_offset / block_size;
+        if (write_block(bitmap_block_id, reinterpret_cast<__u8 *>(buf) + block_offset * block_size) < 0) {
+            perror("Error when write block bitmap into disk");
+        }
+        return;
     }
-    // found and write changed inode
+    // find and write changed inode
+    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
     ull bg_inode_table = ((ull) current_gdt.bg_inode_table_hi << 32) | (ull) current_gdt.bg_inode_table_lo;
-    int inode_block_id = (bg_inode_table + (ull) i * Inode::INODE_SIZE) / block_size;
+    int inode_block_id = (bg_inode_table + (ull) inode_offset * Inode::INODE_SIZE) / block_size;
     int num_inode_per_block = block_size / Inode::INODE_SIZE;
-    int start_inode_id = (i / num_inode_per_block) * num_inode_per_block;
+    int start_inode_id = (inode_offset / num_inode_per_block) * num_inode_per_block;
     for (int j = start_inode_id; j < num_inode_per_block; j++) {
         block_group[group_id].inode_table[j].traverse_settings_to_data(
                 reinterpret_cast<__u8 *>(buf) + j * Inode::INODE_SIZE);
@@ -205,36 +216,52 @@ int Disk::acquire_unused_block() {
         }
         if (found) break;
     }
-    // found changed block
+    // find changed block
     const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
     ull bg_block_bitmap = ((ull) current_gdt.bg_block_bitmap_hi << 32) | (ull) current_gdt.bg_block_bitmap_lo;
     int bitmap_block_id = (bg_block_bitmap + (ull) i) / block_size;
     block_group[group_id].traverse_block_bitmap_to_data(buf);
     int block_offset = i / block_size;
     if (write_block(bitmap_block_id, reinterpret_cast<__u8 *>(buf) + block_offset * block_size) < 0) {
-    perror("Error when write block bitmap into disk");
-            return -1;
-            }
-            return block_id;
-            }
+        perror("Error when write block bitmap into disk");
+        return -1;
+    }
+    return block_id;
+}
 
-            int Disk::acquire_unused_inode() {
-            int inodes_per_group = Superblock::get_instance()->s_inodes_per_group;
-for (int group_id = 0; group_id < num_block_group; group_id++) {
-for (int i = 0; i < inodes_per_group; i++) {
-if (!block_group[group_id].inode_bitmap[i]) {
-block_group[group_id].inode_bitmap[i] = true;
-return group_id * inodes_per_group + i;
-}
-}
-}
-return -1;
+int Disk::acquire_unused_inode() {
+    int inode_id = -1;
+    bool found = false;
+    int inodes_per_group = Superblock::get_instance()->s_inodes_per_group;
+    int group_id = 0, inode_offset = 0;
+    for (; group_id < num_block_group; group_id++) {
+        for (; inode_offset < inodes_per_group; inode_offset++) {
+            if (!block_group[group_id].inode_bitmap[inode_offset]) {
+                block_group[group_id].inode_bitmap[inode_offset] = true;
+                inode_id = group_id * inodes_per_group + inode_offset;
+                found = true;
+                break;
+            }
+        }
+        if (found) break;
+    }
+    // find changed block
+    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
+    ull bg_inode_bitmap = ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;
+    int bitmap_block_id = (bg_inode_bitmap + (ull) inode_offset) / block_size;
+    block_group[group_id].traverse_inode_bitmap_to_data(buf);
+    int block_offset = inode_offset / block_size;
+    if (write_block(bitmap_block_id, reinterpret_cast<__u8 *>(buf) + block_offset * block_size) < 0) {
+        perror("Error when write block bitmap into disk");
+        return -1;
+    }
+    return inode_id;
 }
 
 void Disk::release_block(int block_id) {
-int group_id = block_id / Superblock::get_instance()->s_blocks_per_group;
-int i = block_id % Superblock::get_instance()->s_blocks_per_group;
-block_group[group_id].block_bitmap[i] = false;
+    int group_id = block_id / Superblock::get_instance()->s_blocks_per_group;
+    int i = block_id % Superblock::get_instance()->s_blocks_per_group;
+    block_group[group_id].block_bitmap[i] = false;
     // write changes into disk
     const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
     ull bg_block_bitmap = ((ull) current_gdt.bg_block_bitmap_hi << 32) | (ull) current_gdt.bg_block_bitmap_lo;

@@ -19,4 +19,6 @@ int create_inode(const char *path, int flags);
 
 int write_disk(int fd, long offset, void *buf, int size);
 
+int remove_file_from_dir(const char *file_name);
+
 #endif //BLFS_BLFS_FUNCTIONS_H
