@@ -125,9 +125,19 @@ int find_inode_by_path(const char *path) {
         return 0; // root inode id is always 0
     } else {
         // path may end with '/'
-        // while(){
-
-        // }
+        char split = "/";
+        char *temp_path;
+        strcpy(temp_path,path);
+        char *name = strtok(temp_path,split);
+        int inode_id = 0;
+        while(name != NULL){
+            inode_id = find_inode_by_name(name,get_inode_by_inode_id(inode_id));
+            name = strtok(NULL,split);
+            if(inode_id==-1){
+                return -1;
+            }
+        }
+        return inode_id;
     }
     puts("Not Implemented");
     return -1;
