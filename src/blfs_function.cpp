@@ -88,15 +88,16 @@ int blfunc_init() {
     return 0;
 }
 
-int find_inode_by_name(const char *name, Inode parent_inode) {
+int find_inode_by_name(const char *name, Inode *parent_inode) {
+    if (parent_inode == nullptr) return -1;
     int block_size = Disk::get_instance()->block_size;
-    ull i_size = ((ull) parent_inode.i_size_high << 32) | (ull) parent_inode.i_size_lo;
+    ull i_size = ((ull) parent_inode->i_size_high << 32) | (ull) parent_inode->i_size_lo;
     ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
     int directory_size = block_size / DIRECTORY_LENGTH;
     DirectoryItem *directoryItem = new DirectoryItem[directory_size];
 
     for (int i = 0; i < block_num; i++) {
-        int block_id = parent_inode.get_kth_block_id(i);
+        int block_id = parent_inode->get_kth_block_id(i);
         assert(block_id > 0);
         Disk::get_instance()->read_from_block(block_id, directoryItem);
         int num_items_in_current_block =
@@ -144,11 +145,13 @@ int find_inode_by_path(const char *path) {
     }
 }
 
-Inode &get_inode_by_inode_id(int inode_id) {
+Inode *get_inode_by_inode_id(int inode_id) {
     Superblock *superblock = Superblock::get_instance();
     int group_id = inode_id / superblock->s_inodes_per_group;
     int inode_id_in_group = inode_id % superblock->s_inodes_per_group;
-    return Disk::get_instance()->block_group[group_id].inode_table[inode_id_in_group];
+    if (Disk::get_instance()->block_group[group_id].inode_bitmap[inode_id_in_group])
+        return &Disk::get_instance()->block_group[group_id].inode_table[inode_id_in_group];
+    else return nullptr;
 }
 
 int create_inode(const char *path, int flags) {
@@ -231,16 +234,16 @@ int remove_file_from_dir(const char *file_name) {
     // last_inode_id is directory inode, and inode_id is file inode
     // now find inode_id in the directory
 
-    Inode &dir_inode = get_inode_by_inode_id(last_inode_id);
+    Inode *dir_inode = get_inode_by_inode_id(last_inode_id);
 
     int block_size = Disk::get_instance()->block_size;
-    ull i_size = ((ull) dir_inode.i_size_high << 32) | (ull) dir_inode.i_size_lo;
+    ull i_size = ((ull) dir_inode->i_size_high << 32) | (ull) dir_inode->i_size_lo;
     ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
     int directory_size = block_size / DIRECTORY_LENGTH;
     DirectoryItem *directoryItem = new DirectoryItem[directory_size];
 
     for (int i = 0; i < block_num; i++) {
-        int block_id = dir_inode.get_kth_block_id(i);
+        int block_id = dir_inode->get_kth_block_id(i);
         assert(block_id > 0);
         Disk::get_instance()->read_from_block(block_id, directoryItem);
         int num_items_in_current_block =
@@ -259,15 +262,15 @@ int remove_file_from_dir(const char *file_name) {
                                DIRECTORY_LENGTH - 4);
                     }
                     i_size -= DIRECTORY_LENGTH;
-                    dir_inode.i_size_high = (__le32) ((i_size & 0xFFFFFFFF00000000) >> 32);
-                    dir_inode.i_size_lo = (__le32) (i_size & 0xFFFFFFFF);
+                    dir_inode->i_size_high = (__le32) ((i_size & 0xFFFFFFFF00000000) >> 32);
+                    dir_inode->i_size_lo = (__le32) (i_size & 0xFFFFFFFF);
                     if (num_items_in_last_block == 1) Disk::get_instance()->release_block(block_id);
                     else Disk::get_instance()->update_data(block_id, directoryItem);
                     Disk::get_instance()->update_inode(last_inode_id);
                 } else {
                     // read last block
                     DirectoryItem *lastItems = new DirectoryItem[directory_size];
-                    int last_block_id = dir_inode.get_kth_block_id(block_num - 1);
+                    int last_block_id = dir_inode->get_kth_block_id(block_num - 1);
                     Disk::get_instance()->read_from_block(last_block_id, lastItems);
                     int num_items_in_last_block =
                             ((i_size - 1) % Disk::get_instance()->block_size + 1) / DIRECTORY_LENGTH;
@@ -275,8 +278,8 @@ int remove_file_from_dir(const char *file_name) {
                     directoryItem[j].inode_id = lastItems[num_items_in_last_block - 1].inode_id;
                     memcpy(directoryItem[j].name, lastItems[num_items_in_last_block - 1].name, DIRECTORY_LENGTH - 4);
                     i_size -= DIRECTORY_LENGTH;
-                    dir_inode.i_size_high = (__le32) ((i_size & 0xFFFFFFFF00000000) >> 32);
-                    dir_inode.i_size_lo = (__le32) (i_size & 0xFFFFFFFF);
+                    dir_inode->i_size_high = (__le32) ((i_size & 0xFFFFFFFF00000000) >> 32);
+                    dir_inode->i_size_lo = (__le32) (i_size & 0xFFFFFFFF);
                     Disk::get_instance()->update_data(block_id, directoryItem);
                     Disk::get_instance()->update_inode(last_inode_id);
                     delete[] lastItems;
