@@ -102,7 +102,7 @@ static int blfs_write(const char *path, const char *buf, size_t size, off_t off,
     else
         to_write_size = block_size-offset;
 
-    //第一部分有offset的写入
+    //第一部分，有offset时的写入
     memcpy(bbuf+offset, buf, to_write_size - already_write_size);
     Disk::get_instance()->write_block(inode.get_kth_block_id(block_id), bbuf);
     already_write_size = to_write_size;
