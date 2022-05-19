@@ -12,6 +12,7 @@
 #include "disk.h"
 #include <errno.h>
 #include <stdlib.h>
+#include <assert.h>
 
 
 static int blfs_getattr(const char *path, struct stat *buf, struct fuse_file_info *fi) {
@@ -19,11 +20,12 @@ static int blfs_getattr(const char *path, struct stat *buf, struct fuse_file_inf
     printf("%s\n", path);
     int inode_id = find_inode_by_path(path);
     if (inode_id < 0) return -ENOENT;
-    Inode inode = get_inode_by_inode_id(inode_id);
-    buf->st_nlink = inode.i_links_count;
-    buf->st_mode = inode.i_mode;
-    buf->st_uid = inode.i_uid;
-    buf->st_gid = inode.i_gid;
+    Inode *inode = get_inode_by_inode_id(inode_id);
+    if (inode == nullptr) return -ENOENT;
+    buf->st_nlink = inode->i_links_count;
+    buf->st_mode = inode->i_mode;
+    buf->st_uid = inode->i_uid;
+    buf->st_gid = inode->i_gid;
 //buf->st_atim = inode.i_atime;
 
 
@@ -56,50 +58,58 @@ static int blfs_mkdir(const char *path, mode_t mode) {
     if(findr!=0){
         modify_path[findr] = '\0';
         parent_inode_id = find_inode_by_path(modify_path);//parent inode
-    }else{
+    } else {
         parent_inode_id = find_inode_by_path("/");
     }
-    if(parent_inode_id == -1){
+    if (parent_inode_id == -1) {
         puts("mkdir error: cannot find parent");
         delete[] modify_path;
         return -1;
     }
     //we got the parent's directory now
     int new_inode_id = Disk::get_instance()->acquire_unused_inode();
-    Inode& new_inode = get_inode_by_inode_id(new_inode_id);
-    Inode& parent = get_inode_by_inode_id(parent_inode_id);
-    new_inode.i_mode = mode & 0xffff;
+    Inode *new_inode = get_inode_by_inode_id(new_inode_id);
+    if (new_inode == nullptr) {
+        delete[] modify_path;
+        return -ENOENT;
+    }
+    Inode *parent = get_inode_by_inode_id(parent_inode_id);
+    if (parent == nullptr) {
+        delete[] modify_path;
+        return -ENOENT;
+    }
+    new_inode->i_mode = (__le16) (mode & 0xFFFF) | S_IFDIR;
+    new_inode->i_links_count = 1;
     int block_size = Disk::get_instance()->block_size;
-    ull i_size = ((ull) parent.i_size_high << 32) | (ull) parent.i_size_lo;
+    ull i_size = ((ull) parent->i_size_high << 32) | (ull) parent->i_size_lo;
     ull block_num = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
 
     //need a new block?
-    if(i_size % block_size == 0){//full
+    if (i_size % block_size == 0) {//full
         int new_block_id = Disk::get_instance()->acquire_unused_block();
-        parent.add_block(new_block_id);
+        parent->add_block(new_block_id);
         block_num += 1;
     }
-    int last_block = parent.get_kth_block_id(block_num-1);
+    int last_block = parent->get_kth_block_id(block_num - 1);
     //modify parent inode block    
     int offset = (i_size%block_size) / DIRECTORY_LENGTH;
     DirectoryItem* items = new DirectoryItem[block_size / DIRECTORY_LENGTH];
     Disk::get_instance()->read_from_block(last_block,(void*)items);
     items[offset].inode_id = new_inode_id;
-    if(len-findr-1>DIRECTORY_LENGTH-4){//too long
+    if (len - findr - 1 > DIRECTORY_LENGTH - 4) {//too long
         puts("Mkdir error: name too long");
         delete[] modify_path;
         delete[] items;
         return -1;
     }
-    strcpy(items[offset].name, modify_path+findr+1);
-    Disk::get_instance()->update_data(last_block,(void*)items);
+    strcpy(items[offset].name, modify_path + findr + 1);
+    Disk::get_instance()->update_data(last_block, (void *) items);
     //update i_size
     i_size += DIRECTORY_LENGTH;
-    parent.i_size_high = i_size >> 32;
-    parent.i_size_lo = i_size &(0xffffffff);
+    parent->i_size_high = i_size >> 32;
+    parent->i_size_lo = i_size & (0xffffffff);
     Disk::get_instance()->update_inode(parent_inode_id);//parent inode
     Disk::get_instance()->update_inode(new_inode_id);//parent inode
-    puts("mkdir success");
     delete[] modify_path;
     delete[] items;
     return 0;
@@ -109,8 +119,9 @@ static int blfs_unlink(const char *path) {
     int inode_id = find_inode_by_path(path);
     int res = remove_file_from_dir(path);
     if (res != 0) return res;
-    Inode &inode = get_inode_by_inode_id(inode_id);
-    inode.i_links_count -= 1;
+    Inode *inode = get_inode_by_inode_id(inode_id);
+    if (inode == nullptr) return -ENOENT;
+    inode->i_links_count -= 1;
     Disk::get_instance()->update_inode(inode_id);
     return 0;
 }
@@ -129,10 +140,11 @@ static int blfs_open(const char *path, struct fuse_file_info *fi) {
 static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct fuse_file_info *fi) {
     int inode_id = find_inode_by_path(path);
     if (inode_id < 0) return -ENOENT;
-    Inode &inode = get_inode_by_inode_id(inode_id);
-    if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
-    
-    char *bbuf = malloc(size);
+    Inode *inode = get_inode_by_inode_id(inode_id);
+    if (inode == nullptr) return -ENOENT;
+    if (!(inode->i_mode & S_IFDIR)) return -ENXIO;
+
+    char *bbuf = new char[size];
 
     int block_size = Disk::get_instance()->block_size;
     off_t offset = off;
@@ -140,8 +152,8 @@ static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct
     offset = off % block_size;
 
     int read_size = 0;
-    while(read_size < size+offset){
-        Disk::get_instance()->read_from_block(inode.get_kth_block_id(block_id), bbuf + read_size);
+    while (read_size < size + offset) {
+        Disk::get_instance()->read_from_block(inode->get_kth_block_id(block_id), bbuf + read_size);
         block_id++;
         read_size = strlen(bbuf);
     }
@@ -156,10 +168,11 @@ static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct
 static int blfs_write(const char *path, const char *buf, size_t size, off_t off, struct fuse_file_info *fi) {
     int inode_id = find_inode_by_path(path);
     if (inode_id < 0) return -ENOENT;
-    Inode &inode = get_inode_by_inode_id(inode_id);
-    if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
-    
-    char *bbuf = malloc(size);
+    Inode *inode = get_inode_by_inode_id(inode_id);
+    if (inode == nullptr) return -ENOENT;
+    if (!(inode->i_mode & S_IFDIR)) return -ENXIO;
+
+    char *bbuf = new char[size];
 
     int block_size = Disk::get_instance()->block_size;
     off_t offset = off;
@@ -174,8 +187,8 @@ static int blfs_write(const char *path, const char *buf, size_t size, off_t off,
         to_write_size = block_size-offset;
 
     //第一部分，有offset时的写入
-    memcpy(bbuf+offset, buf, to_write_size - already_write_size);
-    Disk::get_instance()->update_data(inode.get_kth_block_id(block_id), bbuf);
+    memcpy(bbuf + offset, buf, to_write_size - already_write_size);
+    Disk::get_instance()->update_data(inode->get_kth_block_id(block_id), bbuf);
     already_write_size = to_write_size;
     if(to_write_size + block_size > size){
         to_write_size = size;            
@@ -185,8 +198,8 @@ static int blfs_write(const char *path, const char *buf, size_t size, off_t off,
     }
 
     while(to_write_size<size){
-        memcpy(bbuf, buf+already_write_size, to_write_size - already_write_size);
-        Disk::get_instance()->update_data(inode.get_kth_block_id(block_id), bbuf);
+        memcpy(bbuf, buf + already_write_size, to_write_size - already_write_size);
+        Disk::get_instance()->update_data(inode->get_kth_block_id(block_id), bbuf);
         already_write_size = to_write_size;
         if(to_write_size + block_size > size){
             to_write_size = size;            
@@ -224,19 +237,20 @@ static int blfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
                         enum fuse_readdir_flags flags) {
     int inode_id = find_inode_by_path(path);
     if (inode_id < 0) return -ENOENT;
-    Inode &inode = get_inode_by_inode_id(inode_id);
-    if (!(inode.i_mode & S_IFDIR)) return -ENXIO;
-    //if (filler(buf, ".", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
+    Inode *inode = get_inode_by_inode_id(inode_id);
+    if (inode == nullptr) return -ENOENT;
+    if (!(inode->i_mode & S_IFDIR)) return -ENXIO;
+    if (filler(buf, ".", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
     if (inode_id != 0)
         if (filler(buf, "..", nullptr, 0, FUSE_FILL_DIR_PLUS) != 0) return 1;
-    ull dir_size = ((ull) inode.i_size_high << 32) | (ull) inode.i_size_lo;
+    ull dir_size = ((ull) inode->i_size_high << 32) | (ull) inode->i_size_lo;
     ull num_files = dir_size / DIRECTORY_LENGTH;
     int block_size = Disk::get_instance()->block_size;
     int dir_last_block = dir_size / block_size;
     int dir_item_per_block = block_size / DIRECTORY_LENGTH;
     DirectoryItem *items = new DirectoryItem[dir_item_per_block];
     for (int i = 0; i <= dir_last_block; i++) {
-        Disk::get_instance()->read_from_block(inode.get_kth_block_id(i), items);
+        Disk::get_instance()->read_from_block(inode->get_kth_block_id(i), items);
         if (i == dir_last_block) {
             int num_file_offset = num_files % dir_item_per_block;
             for (int j = 0; j < num_file_offset; j++)
@@ -273,11 +287,13 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     memcpy(path_dir, path, (path_length + 1) * sizeof(char));
     path_dir[path_length + 1] = '\0';
     int inode_id = find_inode_by_path(path_dir);
+    free(path_dir);
     if (inode_id < 0) return -ENOENT;
-    Inode &inode = get_inode_by_inode_id(inode_id);
+    Inode *inode = get_inode_by_inode_id(inode_id);
+    if (inode == nullptr) return -ENOENT;
 
     // add file name to directory
-    ull dir_size = ((ull) inode.i_size_high << 32) | (ull) inode.i_size_lo;
+    ull dir_size = ((ull) inode->i_size_high << 32) | (ull) inode->i_size_lo;
     ull num_files = dir_size / sizeof(DirectoryItem);
     int block_size = Disk::get_instance()->block_size;
     int dir_last_block = dir_size / block_size;
@@ -287,26 +303,27 @@ static int blfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     if (dir_size % block_size == 0) {
         // add new block
         int block_id = Disk::get_instance()->acquire_unused_block();
-        inode.add_block(block_id);
+        inode->add_block(block_id);
         new_inode_id = Disk::get_instance()->acquire_unused_inode();
         items[0].inode_id = new_inode_id;
         memcpy(items[0].name, path + path_length + 1, strlen(path) - path_length - 1);
         Disk::get_instance()->update_data(block_id, items);
     } else {
         int file_offset = num_files % dir_item_per_block;
-        Disk::get_instance()->read_from_block(inode.get_kth_block_id(dir_last_block), items);
+        Disk::get_instance()->read_from_block(inode->get_kth_block_id(dir_last_block), items);
         new_inode_id = Disk::get_instance()->acquire_unused_inode();
         items[file_offset].inode_id = new_inode_id;
         memcpy(items[file_offset].name, path + path_length + 1, strlen(path) - path_length - 1);
-        Disk::get_instance()->update_data(inode.get_kth_block_id(dir_last_block), items);
+        Disk::get_instance()->update_data(inode->get_kth_block_id(dir_last_block), items);
     }
-    Inode &new_inode = get_inode_by_inode_id(new_inode_id);
-    new_inode.i_mode = (__le16) (mode & 0xFFFF);
-    new_inode.i_links_count += 1;
+    Inode *new_inode = get_inode_by_inode_id(new_inode_id);
+    assert(new_inode != nullptr);
+    new_inode->i_mode = (__le16) (mode & 0xFFFF);
+    new_inode->i_links_count += 1;
     Disk::get_instance()->update_inode(new_inode_id);
     dir_size += sizeof(DirectoryItem);
-    inode.i_size_high = (__le32) ((dir_size & 0xFFFFFFFF00000000) >> 32);
-    inode.i_size_lo = (__le32) (dir_size & 0xFFFFFFFF);
+    inode->i_size_high = (__le32) ((dir_size & 0xFFFFFFFF00000000) >> 32);
+    inode->i_size_lo = (__le32) (dir_size & 0xFFFFFFFF);
     Disk::get_instance()->update_inode(inode_id);
     return 0;
 }
