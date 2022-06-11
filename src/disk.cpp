@@ -3,6 +3,7 @@
 //
 
 #include "disk.h"
+#include "cache.h"
 #include "blfs_functions.h"
 #include <stdio.h>
 #include <unistd.h>
@@ -33,8 +34,8 @@ Disk::~Disk() {
     free(buf);
 }
 
-void Disk::init_block_group(int group_id, void *buf) {
-    __u8 *u8_buf = reinterpret_cast<__u8 *>(buf);
+void Disk::init_block_group(int group_id, void *input_buf) {
+    __u8 *u8_buf = reinterpret_cast<__u8 *>(input_buf);
     if (group_id == 0) {
         // contains superblock and gdt
         block_group[group_id].superblock = Superblock::get_instance();
@@ -162,45 +163,32 @@ void Disk::update_inode(int inode_id) {
         ull num_blocks = i_size == 0 ? 0 : (i_size - 1) / block_size + 1;
         for (int j = 0; j < num_blocks; j++) release_block(inode.get_kth_block_id(j));
         // release inode
-        const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
-        ull bg_inode_bitmap = ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;
-        int bitmap_block_id = (bg_inode_bitmap + (ull) inode_offset) / block_size;
         block_group[group_id].inode_bitmap[inode_offset] = false;
-        block_group[group_id].traverse_inode_bitmap_to_data(buf);
-        int block_offset = inode_offset / block_size;
-        if (write_block(bitmap_block_id, reinterpret_cast<__u8 *>(buf) + block_offset * block_size) < 0) {
+        if (Cache::get_instance()->update_metadata(inode_id, INODE_DELETE, false, 0) < 0) {
             perror("Error when write block bitmap into disk");
         }
         return;
-    }
-    // find and write changed inode
-    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
-    ull bg_inode_table = ((ull) current_gdt.bg_inode_table_hi << 32) | (ull) current_gdt.bg_inode_table_lo;
-    int inode_block_id = (bg_inode_table + (ull) inode_offset * Inode::INODE_SIZE) / block_size;
-    int num_inode_per_block = block_size / Inode::INODE_SIZE;
-    int start_inode_id = (inode_offset / num_inode_per_block) * num_inode_per_block;
-    for (int j = start_inode_id; j < num_inode_per_block; j++) {
-        block_group[group_id].inode_table[j].traverse_settings_to_data(
-                reinterpret_cast<__u8 *>(buf) + j * Inode::INODE_SIZE);
-    }
-    if (write_block(inode_block_id, buf) < 0) {
-        perror("Error when write inode into disk");
+    } else {
+        // write changed inode
+        if (Cache::get_instance()->update_metadata(inode_id, INODE_NO_CHANGE, false, 0) < 0) {
+            perror("Error when write inode into disk");
+        }
     }
 }
 
-void Disk::update_data(int block_id, void *data) {
-    if (write_block(block_id, data) < 0) {
+void Disk::update_data(int inode_id, int block_id, void *data) {
+    if (Cache::get_instance()->write_block(inode_id, block_id, data) < 0) {
         perror("update data error");
     }
 }
 
-void Disk::update_null_data(int block_id) {
-    if (write_block(block_id, empty_buf) < 0) {
+void Disk::update_null_data(int inode_id, int block_id) {
+    if (Cache::get_instance()->write_block(inode_id, block_id, empty_buf) < 0) {
         perror("update null data error");
     }
 }
 
-int Disk::acquire_unused_block() {
+int Disk::acquire_unused_block(int inode_id) {
     int block_id = -1;
     bool found = false;
     int blocks_per_group = Superblock::get_instance()->s_blocks_per_group;
@@ -216,14 +204,8 @@ int Disk::acquire_unused_block() {
         }
         if (found) break;
     }
-    // find changed block
-    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
-    ull bg_block_bitmap = ((ull) current_gdt.bg_block_bitmap_hi << 32) | (ull) current_gdt.bg_block_bitmap_lo;
-    int bitmap_block_id = (bg_block_bitmap + (ull) i) / block_size;
-    block_group[group_id].traverse_block_bitmap_to_data(buf);
-    int block_offset = i / block_size;
-    if (write_block(bitmap_block_id, reinterpret_cast<__u8 *>(buf) + block_offset * block_size) < 0) {
-        perror("Error when write block bitmap into disk");
+    if (Cache::get_instance()->update_metadata(inode_id, INODE_NO_CHANGE, true, block_id) < 0) {
+        perror("Error when write block bitmap into cache");
         return -1;
     }
     return block_id;
@@ -245,14 +227,8 @@ int Disk::acquire_unused_inode() {
         }
         if (found) break;
     }
-    // find changed block
-    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
-    ull bg_inode_bitmap = ((ull) current_gdt.bg_inode_bitmap_hi << 32) | (ull) current_gdt.bg_inode_bitmap_lo;
-    int bitmap_block_id = (bg_inode_bitmap + (ull) inode_offset) / block_size;
-    block_group[group_id].traverse_inode_bitmap_to_data(buf);
-    int block_offset = inode_offset / block_size;
-    if (write_block(bitmap_block_id, reinterpret_cast<__u8 *>(buf) + block_offset * block_size) < 0) {
-        perror("Error when write block bitmap into disk");
+    if (Cache::get_instance()->update_metadata(inode_id, INODE_ADD, false, 0) < 0) {
+        perror("Error when write block bitmap into cache");
         return -1;
     }
     return inode_id;
@@ -262,40 +238,10 @@ void Disk::release_block(int block_id) {
     int group_id = block_id / Superblock::get_instance()->s_blocks_per_group;
     int i = block_id % Superblock::get_instance()->s_blocks_per_group;
     block_group[group_id].block_bitmap[i] = false;
-    // write changes into disk
-    const GroupDescriptor &current_gdt = block_group[0].gdt[group_id];
-    ull bg_block_bitmap = ((ull) current_gdt.bg_block_bitmap_hi << 32) | (ull) current_gdt.bg_block_bitmap_lo;
-    int bitmap_block_id = (bg_block_bitmap + (ull) i) / block_size;
-    block_group[group_id].traverse_block_bitmap_to_data(buf);
-    int block_offset = i / block_size;
-    if (write_block(bitmap_block_id, reinterpret_cast<__u8 *>(buf) + block_offset * block_size) < 0) {
-        perror("Error when write block bitmap into disk");
-    }
 }
 
 void Disk::read_from_block(int block_id, void *data) {
-    if (read_block(block_id, data) < 0) {
+    if (Cache::get_instance()->read_block(block_id, data) < 0) {
         perror("Error occurred when read from block");
     }
-}
-
-int Disk::write_block(int block_id, void *data) {
-    int disk_fd = open(DISK_PATH, O_RDWR | O_DIRECT | O_NOATIME);
-    memcpy(block_buf, data, block_size);
-    ull offset = block_id * block_size;
-    lseek64(disk_fd, offset, SEEK_SET);
-    int res = write(disk_fd, block_buf, block_size);
-    close(disk_fd);
-    return res;
-}
-
-int Disk::read_block(int block_id, void *data) {
-    int disk_fd = open(DISK_PATH, O_RDWR | O_DIRECT | O_NOATIME);
-    ull offset = block_id * block_size;
-    lseek64(disk_fd, offset, SEEK_SET);
-    int res = read(disk_fd, block_buf, block_size);
-    if (res < 0) return res;
-    else memcpy(data, block_buf, block_size);
-    close(disk_fd);
-    return res;
 }

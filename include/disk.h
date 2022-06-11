@@ -9,7 +9,6 @@
 #include "superblock.h"
 #include "block_group.h"
 
-
 typedef unsigned long long ull;
 const char DISK_PATH[] = "/tmp/disk";
 const ull DISK_SIZE = 17179869184; // 16G
@@ -47,11 +46,11 @@ public:
 
     void update_inode(int inode_id);
 
-    void update_data(int block_id, void *data);
+    void update_data(int inode_id, int block_id, void *data);
 
-    void update_null_data(int block_id);
+    void update_null_data(int inode_id, int block_id);
 
-    int acquire_unused_block(); //空block编号
+    int acquire_unused_block(int inode_id); //空block编号
 
     int acquire_unused_inode();
 
@@ -76,10 +75,6 @@ private:
     Disk();
 
     ~Disk();
-
-    int write_block(int block_id, void *data);
-
-    int read_block(int block_id, void *data);
 
     void *block_buf;
     void *empty_buf;

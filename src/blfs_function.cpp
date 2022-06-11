@@ -265,7 +265,7 @@ int remove_file_from_dir(const char *file_name) {
                     dir_inode->i_size_high = (__le32) ((i_size & 0xFFFFFFFF00000000) >> 32);
                     dir_inode->i_size_lo = (__le32) (i_size & 0xFFFFFFFF);
                     if (num_items_in_last_block == 1) Disk::get_instance()->release_block(block_id);
-                    else Disk::get_instance()->update_data(block_id, directoryItem);
+                    else Disk::get_instance()->update_data(inode_id, block_id, directoryItem);
                     Disk::get_instance()->update_inode(last_inode_id);
                 } else {
                     // read last block
@@ -280,7 +280,7 @@ int remove_file_from_dir(const char *file_name) {
                     i_size -= DIRECTORY_LENGTH;
                     dir_inode->i_size_high = (__le32) ((i_size & 0xFFFFFFFF00000000) >> 32);
                     dir_inode->i_size_lo = (__le32) (i_size & 0xFFFFFFFF);
-                    Disk::get_instance()->update_data(block_id, directoryItem);
+                    Disk::get_instance()->update_data(inode_id, block_id, directoryItem);
                     Disk::get_instance()->update_inode(last_inode_id);
                     delete[] lastItems;
                 }
