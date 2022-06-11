@@ -27,6 +27,7 @@ static int blfs_getattr(const char *path, struct stat *buf, struct fuse_file_inf
     buf->st_mode = inode->i_mode;
     buf->st_uid = inode->i_uid;
     buf->st_gid = inode->i_gid;
+    buf->st_size = inode->i_size_lo | ((ull) inode->i_size_high << 32);
 //buf->st_atim = inode.i_atime;
 
 
@@ -139,14 +140,23 @@ static int blfs_open(const char *path, struct fuse_file_info *fi) {
 }
 
 static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct fuse_file_info *fi) {
+    puts("blfs read");
     int inode_id = find_inode_by_path(path);
     if (inode_id < 0) return -ENOENT;
     Inode *inode = get_inode_by_inode_id(inode_id);
     if (inode == nullptr) return -ENOENT;
-
-    char *bbuf;
+    ull i_size = inode->i_size_lo | ((ull) (inode->i_size_high) << 32);
+    if (off > i_size) {
+        return 0;
+    }
+    if (off + size > i_size) {
+        size = i_size - off;
+    }
+    //printf("try to read size %d\n",size);fflush(stdout);
 
     int block_size = Disk::get_instance()->block_size;
+    int buf_size = size < block_size ? block_size : size;
+    char *bbuf = new char[buf_size];
     off_t offset = off;
     int block_id = off / block_size;
     offset = off % block_size;
@@ -160,21 +170,46 @@ static int blfs_read(const char *path, char *buf, size_t size, off_t off, struct
 
     memcpy(buf, bbuf + offset, size);
     delete[] bbuf;
-    puts("blfs read");
     return size;
 
 }
 
 static int blfs_write(const char *path, const char *buf, size_t size, off_t off, struct fuse_file_info *fi) {
+    puts("blfs write");
     int inode_id = find_inode_by_path(path);
-    if (inode_id < 0) return -ENOENT;
+    //printf("blfs write to inode %d offset %d, size %d\n",inode_id, off, size);fflush(stdout);
+    if (inode_id < 0) {
+        puts("error: inode id < 0");
+        return -ENOENT;
+    }
     Inode *inode = get_inode_by_inode_id(inode_id);
-    if (inode == nullptr) return -ENOENT;
-
-    char *bbuf;
+    if (inode == nullptr) {
+        puts("error: inode pointer == null");
+        return -ENOENT;
+    }
+    if (inode->i_mode & S_IFDIR) {
+        puts("error: file is a directory");
+        return -ENXIO;
+    }
 
     int block_size = Disk::get_instance()->block_size;
+
+    ull i_size = inode->i_size_lo | (ull) (inode->i_size_high) << 32;
+    if (off + size > i_size) {
+        int cur_last_block = (i_size + block_size - 1) / block_size;
+        i_size = off + size;
+        int new_last_block = (i_size + block_size - 1) / block_size;
+        for (int i = cur_last_block + 1; i <= new_last_block; ++i) {
+            inode->add_block(Disk::get_instance()->acquire_unused_block(inode_id));
+        }
+        inode->i_size_lo = i_size & 0xffffffff;
+        inode->i_size_high = i_size >> 32;
+        Disk::get_instance()->update_inode(inode_id);
+    }
+
+    char *bbuf = new char[size];
     off_t offset = off;
+
     int block_id = off / block_size;
     offset = off % block_size;
 
@@ -206,7 +241,6 @@ static int blfs_write(const char *path, const char *buf, size_t size, off_t off,
         }
     }
     delete[]bbuf;
-    puts("blfs write");
     return size;
 }
 
