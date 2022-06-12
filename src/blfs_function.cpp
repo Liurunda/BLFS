@@ -285,7 +285,7 @@ int remove_file_from_dir(const char *file_name) {
                     delete[] lastItems;
                 }
                 delete[] directoryItem;
-                return 0;
+                return inode_id;
             }
         }
     }
